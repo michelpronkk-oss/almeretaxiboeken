@@ -1,6 +1,8 @@
-﻿import Link from "next/link"
+import Link from "next/link"
 import { redirect } from "next/navigation"
 import { isAdminAuthenticated } from "@/lib/admin-auth"
+import { sendEmail } from "@/lib/email/send"
+import { driverAssignedRideEmail } from "@/lib/email/templates"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 type SearchParams = Promise<{ filter?: string }>
@@ -19,6 +21,18 @@ async function assignDriverAction(formData: FormData) {
 
   const supabase = getSupabaseServiceClient()
 
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("reference, pickup_address, destination_address, pickup_date, pickup_time, vehicle_type, passengers")
+    .eq("id", bookingId)
+    .maybeSingle()
+
+  const { data: driver } = await supabase
+    .from("drivers")
+    .select("email")
+    .eq("id", driverId)
+    .maybeSingle()
+
   await supabase
     .from("bookings")
     .update({ assigned_driver_id: driverId, booking_status: "assigned" })
@@ -31,6 +45,26 @@ async function assignDriverAction(formData: FormData) {
     actor_id: null,
     note: `Driver assigned: ${driverId}`,
   })
+
+  if (booking?.reference && driver?.email) {
+    const mail = driverAssignedRideEmail({
+      reference: booking.reference,
+      origin: booking.pickup_address || "-",
+      destination: booking.destination_address || "-",
+      date: booking.pickup_date || "-",
+      time: booking.pickup_time || "-",
+      vehicleType: booking.vehicle_type || "taxi",
+      passengers: booking.passengers ?? undefined,
+    })
+
+    await sendEmail({
+      to: driver.email,
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
+      from: process.env.DRIVER_INVITE_FROM_EMAIL || process.env.RESEND_FROM_EMAIL,
+    })
+  }
 }
 
 export default async function AdminRittenPage({ searchParams }: { searchParams: SearchParams }) {
@@ -91,7 +125,7 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
             <p className="text-sm text-[#B7AEA2]">{booking.pickup_date || "-"} {booking.pickup_time || ""}</p>
             <p className="mt-2 text-sm text-[#B7AEA2]">{booking.pickup_address} {"->"} {booking.destination_address}</p>
             <p className="mt-1 text-sm text-[#8F877D]">{booking.customer_name || "-"} | {booking.customer_phone || "-"}</p>
-            <p className="mt-1 text-sm text-[#8F877D]">€{Number(booking.estimated_fare ?? 0).toFixed(2)} | {booking.booking_status}</p>
+            <p className="mt-1 text-sm text-[#8F877D]">�{Number(booking.estimated_fare ?? 0).toFixed(2)} | {booking.booking_status}</p>
 
             <form action={assignDriverAction} className="mt-3 space-y-2">
               <input type="hidden" name="bookingId" value={booking.id} />
@@ -127,7 +161,7 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
                 <td className="px-3 py-3 text-[#B7AEA2]">{booking.pickup_date || "-"} {booking.pickup_time || ""}</td>
                 <td className="px-3 py-3 text-[#B7AEA2]"><div>{booking.pickup_address}</div><div className="text-[#8F877D]">{booking.destination_address}</div></td>
                 <td className="px-3 py-3 text-[#B7AEA2]"><div>{booking.customer_name || "-"}</div><div className="text-[#8F877D]">{booking.customer_phone || "-"}</div></td>
-                <td className="px-3 py-3 text-[#B7AEA2]">{booking.passengers ?? "-"}p - {booking.vehicle_type || "-"}<br />€{Number(booking.estimated_fare ?? 0).toFixed(2)}</td>
+                <td className="px-3 py-3 text-[#B7AEA2]">{booking.passengers ?? "-"}p - {booking.vehicle_type || "-"}<br />�{Number(booking.estimated_fare ?? 0).toFixed(2)}</td>
                 <td className="px-3 py-3 text-[#B7AEA2]">{booking.payment_status}<br />{booking.booking_status}</td>
                 <td className="px-3 py-3">
                   <form action={assignDriverAction} className="space-y-2">
@@ -151,4 +185,3 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
     </section>
   )
 }
-

@@ -1,6 +1,8 @@
 import crypto from "crypto"
 import { revalidatePath } from "next/cache"
 import { NextResponse } from "next/server"
+import { sendEmail } from "@/lib/email/send"
+import { chauffeurOnboardingSubmittedAdminEmail } from "@/lib/email/templates"
 import { getValidDriverInviteByToken } from "@/lib/chauffeur/invites"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
@@ -179,6 +181,25 @@ export async function POST(request: Request) {
 
     if (inviteUpdateError) {
       return fail("driver_invite_update", "Uitnodigingsstatus kon niet worden bijgewerkt.", 500, inviteUpdateError.message)
+    }
+
+    const adminNotificationEmail = process.env.ADMIN_NOTIFICATION_EMAIL
+    if (adminNotificationEmail) {
+      const mail = chauffeurOnboardingSubmittedAdminEmail({
+        driverId: invite.driverId,
+        name: `${firstName} ${lastName}`.trim(),
+        email: invite.email,
+        phone,
+        vehicleType,
+        licensePlate,
+      })
+
+      await sendEmail({
+        to: adminNotificationEmail,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
+      })
     }
 
     revalidatePath("/admin/chauffeurs")
