@@ -162,11 +162,11 @@ const trustSignals = [
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#080807] text-[#F5F1E8]">
+    <div className="min-h-screen overflow-x-hidden bg-[#080807] text-[#F5F1E8]">
       <SiteHeader />
 
       {/* ── Hero ─────────────────────────────────────────── */}
-      <section className="relative pb-20 pt-16 sm:pb-24 lg:pb-28">
+      <section className="relative pb-12 pt-8 sm:pb-20 sm:pt-12 lg:pb-28 lg:pt-16">
         {/* Background layers */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
           {/* Primary champagne glow — static */}
@@ -183,7 +183,7 @@ export default function Home() {
             }}
           />
           {/* Top-fade overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#080807]/70 via-transparent to-[#080807]/50" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#080807]/35 via-transparent to-[#080807]/22" />
           {/* Decorative route SVG */}
           <div className="absolute bottom-0 left-0 right-0 h-44 opacity-[0.13]">
             <svg
@@ -231,12 +231,12 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-10 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:py-20">
+        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-6 px-4 py-5 sm:gap-10 sm:px-6 sm:py-12 lg:grid-cols-[1.05fr_0.95fr] lg:py-20">
           <motion.div
             initial="hidden"
             animate="visible"
             variants={stagger}
-            className="flex flex-col gap-6"
+            className="order-1 flex flex-col gap-4 sm:gap-6"
           >
             <motion.span
               variants={fade}
@@ -247,7 +247,7 @@ export default function Home() {
 
             <motion.h1
               variants={fade}
-              className="font-display text-4xl font-black leading-[1.04] tracking-tight text-[#F5F1E8] sm:text-5xl lg:text-6xl xl:text-7xl"
+              className="font-display text-[34px] font-black leading-[1.06] tracking-tight text-[#F5F1E8] sm:text-5xl lg:text-6xl xl:text-7xl"
             >
               Betrouwbaar vervoer.
               <br />
@@ -256,7 +256,7 @@ export default function Home() {
 
             <motion.p
               variants={fade}
-              className="max-w-md text-[15px] leading-relaxed text-[#B7AEA2]"
+              className="max-w-md text-[14px] leading-relaxed text-[#B7AEA2] sm:text-[15px]"
             >
               Vaste tarieven, directe bevestiging en professionele chauffeurs.
               Wij rijden u veilig in en rondom Almere, naar Schiphol en verder.
@@ -279,7 +279,7 @@ export default function Home() {
 
             <motion.div
               variants={fade}
-              className="flex flex-wrap items-center gap-x-5 gap-y-1.5 pt-2 text-[11px] text-[#7F776E]"
+              className="hidden flex-wrap items-center gap-x-5 gap-y-1.5 pt-1 text-[11px] text-[#7F776E] sm:flex"
             >
               {["Schiphol", "Amsterdam Centraal", "Utrecht CS", "Rotterdam Airport"].map(
                 (loc, i) => (
@@ -297,15 +297,29 @@ export default function Home() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease, delay: 0.15 }}
-            className="relative"
+            className="order-2 relative"
           >
             <div
-              className="pointer-events-none absolute -inset-4 rounded-3xl bg-[#D6B58A]/[0.05] blur-xl"
+              className="pointer-events-none absolute -inset-3 rounded-3xl bg-[#D6B58A]/[0.045] blur-xl sm:-inset-4"
               aria-hidden
             />
             <div className="relative">
               <BookingWidget />
             </div>
+          </motion.div>
+
+          <motion.div
+            variants={fade}
+            className="order-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-0.5 text-[11px] text-[#7F776E] sm:hidden"
+          >
+            {["Schiphol", "Amsterdam Centraal", "Utrecht CS", "Rotterdam Airport"].map(
+              (loc, i) => (
+                <span key={loc} className="flex items-center gap-2">
+                  {i > 0 && <span className="size-1 rounded-full bg-[#292520]" />}
+                  {loc}
+                </span>
+              )
+            )}
           </motion.div>
         </div>
       </section>

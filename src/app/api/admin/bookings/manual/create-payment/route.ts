@@ -11,6 +11,8 @@ interface CreatePaymentBody {
   customerPhone?: string
   pickupAddress?: string
   destinationAddress?: string
+  pickup?: string | { address?: string; placeId?: string }
+  destination?: string | { address?: string; placeId?: string }
   pickupDate?: string
   pickupTime?: string
   passengers?: number
@@ -38,14 +40,32 @@ export async function POST(request: NextRequest) {
   const customerPhone = String(body.customerPhone || "").trim()
   const pickupAddress = String(body.pickupAddress || "").trim()
   const destinationAddress = String(body.destinationAddress || "").trim()
+  const pickup =
+    typeof body.pickup === "string"
+      ? { address: body.pickup }
+      : body.pickup && (body.pickup.address || body.pickup.placeId)
+        ? body.pickup
+        : pickupAddress
+          ? { address: pickupAddress }
+          : undefined
+  const destination =
+    typeof body.destination === "string"
+      ? { address: body.destination }
+      : body.destination && (body.destination.address || body.destination.placeId)
+        ? body.destination
+        : destinationAddress
+          ? { address: destinationAddress }
+          : undefined
   const pickupDate = String(body.pickupDate || "").trim()
   const pickupTime = String(body.pickupTime || "").trim()
   const notes = String(body.notes || "").trim()
   const passengers = Math.max(1, Math.min(8, Number(body.passengers || 1)))
   const saveWithoutPayment = Boolean(body.saveWithoutPayment)
   const wantsEmail = Boolean(body.sendEmail)
+  const pickupAddressForStorage = String(pickup?.address || pickupAddress).trim()
+  const destinationAddressForStorage = String(destination?.address || destinationAddress).trim()
 
-  if (!customerName || !customerPhone || !pickupAddress || !destinationAddress || !pickupDate || !pickupTime) {
+  if (!customerName || !customerPhone || !pickup || !destination || !pickupDate || !pickupTime) {
     return Response.json({ success: false, message: "Vul alle verplichte velden in." }, { status: 400 })
   }
 
@@ -56,8 +76,8 @@ export async function POST(request: NextRequest) {
   let fare
   try {
     fare = await computeRouteFare({
-      origin: { address: pickupAddress },
-      destination: { address: destinationAddress },
+      origin: pickup,
+      destination,
       passengers,
     })
   } catch (error) {
@@ -77,8 +97,8 @@ export async function POST(request: NextRequest) {
       customer_name: customerName,
       customer_email: customerEmail || null,
       customer_phone: customerPhone,
-      pickup_address: pickupAddress,
-      destination_address: destinationAddress,
+      pickup_address: pickupAddressForStorage,
+      destination_address: destinationAddressForStorage,
       pickup_date: pickupDate,
       pickup_time: pickupTime,
       passengers: fare.passengers,
@@ -147,8 +167,8 @@ export async function POST(request: NextRequest) {
       metadata: {
         bookingId: booking.id,
         bookingRef: booking.reference,
-        origin: pickupAddress,
-        destination: destinationAddress,
+        origin: pickupAddressForStorage,
+        destination: destinationAddressForStorage,
         date: pickupDate,
         time: pickupTime,
         vehicleType: fare.vehicleType,
@@ -211,8 +231,8 @@ export async function POST(request: NextRequest) {
       reference: booking.reference,
       date: pickupDate,
       time: pickupTime,
-      origin: pickupAddress,
-      destination: destinationAddress,
+      origin: pickupAddressForStorage,
+      destination: destinationAddressForStorage,
       passengers: fare.passengers,
       vehicleType: fare.vehicleType,
       price: fare.estimatedFare,

@@ -7,6 +7,7 @@ const nav = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/ritten", label: "Ritten" },
   { href: "/admin/chauffeurs", label: "Chauffeurs" },
+  { href: "/admin/docs", label: "Handleiding" },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -64,3 +65,4 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   )
 }
+

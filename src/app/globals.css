@@ -211,4 +211,42 @@
   .atb-reduce-motion-hide {
     display: none;
   }
+}@media (prefers-reduced-motion: reduce) {
+  .atb-booking-glow {
+    animation: none !important;
+    box-shadow: none !important;
+  }
+
+  .atb-calc-cta {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+@keyframes atb-booking-glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(214, 181, 138, 0.08), 0 18px 42px rgba(0, 0, 0, 0.45);
+  }
+
+  50% {
+    box-shadow: 0 0 0 1px rgba(214, 181, 138, 0.18), 0 20px 48px rgba(0, 0, 0, 0.5);
+  }
+}
+
+.atb-booking-glow {
+  animation: atb-booking-glow-pulse 5.2s ease-in-out infinite;
+}
+
+.atb-calc-cta {
+  transition: transform 180ms ease, box-shadow 220ms ease, background-color 220ms ease;
+}
+
+.atb-calc-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(214, 181, 138, 0.14);
+}
+
+.atb-calc-cta:active {
+  transform: translateY(0);
 }

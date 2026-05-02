@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
+import AddressAutocomplete from "@/components/address-autocomplete"
 import { formatCurrencyEUR } from "@/lib/format"
 
 type FareResult = {
@@ -10,6 +11,11 @@ type FareResult = {
   estimatedFare: number
   vehicleType: "taxi" | "taxibus"
   passengers: number
+}
+
+type LocationValue = {
+  address: string
+  placeId?: string
 }
 
 type CreateResponse = {
@@ -32,6 +38,8 @@ export default function ManualRideForm() {
   const [customerPhone, setCustomerPhone] = useState("")
   const [pickupAddress, setPickupAddress] = useState("")
   const [destinationAddress, setDestinationAddress] = useState("")
+  const [pickupLocation, setPickupLocation] = useState<LocationValue>({ address: "" })
+  const [destinationLocation, setDestinationLocation] = useState<LocationValue>({ address: "" })
   const [pickupDate, setPickupDate] = useState("")
   const [pickupTime, setPickupTime] = useState("")
   const [passengers, setPassengers] = useState(1)
@@ -72,7 +80,13 @@ export default function ManualRideForm() {
       const res = await fetch("/api/admin/bookings/manual/calculate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pickupAddress, destinationAddress, passengers }),
+        body: JSON.stringify({
+          pickupAddress,
+          destinationAddress,
+          pickup: pickupLocation,
+          destination: destinationLocation,
+          passengers,
+        }),
       })
       const data = await res.json()
       if (!res.ok || !data.success) {
@@ -122,8 +136,10 @@ export default function ManualRideForm() {
           customerName,
           customerEmail,
           customerPhone,
-          pickupAddress,
-          destinationAddress,
+          pickupAddress: pickupLocation.address || pickupAddress,
+          destinationAddress: destinationLocation.address || destinationAddress,
+          pickup: pickupLocation,
+          destination: destinationLocation,
           pickupDate,
           pickupTime,
           passengers,
@@ -213,8 +229,28 @@ export default function ManualRideForm() {
         <article className="rounded-2xl border border-[#292520] bg-[#141210] p-4">
           <h2 className="text-sm font-semibold text-[#F5F1E8]">2. Ritgegevens</h2>
           <div className="mt-3 space-y-3">
-            <input value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)} placeholder="Vertrekadres" className="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8]" />
-            <input value={destinationAddress} onChange={(e) => setDestinationAddress(e.target.value)} placeholder="Bestemming" className="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8]" />
+            <AddressAutocomplete
+              label="Vertrekadres"
+              value={pickupAddress}
+              onChange={(value) => {
+                setPickupAddress(value)
+                setPickupLocation({ address: value, placeId: undefined })
+              }}
+              onPlaceSelect={(place) => setPickupLocation(place)}
+              placeholder="Vertrekadres"
+              inputClassName="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8] placeholder:text-[#8F877D] outline-none focus:border-[#D6B58A]/50"
+            />
+            <AddressAutocomplete
+              label="Bestemmingsadres"
+              value={destinationAddress}
+              onChange={(value) => {
+                setDestinationAddress(value)
+                setDestinationLocation({ address: value, placeId: undefined })
+              }}
+              onPlaceSelect={(place) => setDestinationLocation(place)}
+              placeholder="Bestemmingsadres"
+              inputClassName="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8] placeholder:text-[#8F877D] outline-none focus:border-[#D6B58A]/50"
+            />
             <div className="grid grid-cols-2 gap-3">
               <input type="date" value={pickupDate} onChange={(e) => setPickupDate(e.target.value)} className="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8]" />
               <input type="time" value={pickupTime} onChange={(e) => setPickupTime(e.target.value)} className="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8]" />

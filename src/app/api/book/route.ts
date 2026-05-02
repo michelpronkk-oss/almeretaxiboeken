@@ -1,4 +1,5 @@
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
+import { isTooSoonForPublicBooking } from "@/lib/operations"
 
 interface BookingBody {
   origin: string
@@ -41,6 +42,17 @@ export async function POST(request: Request) {
 
   if (!origin || !destination || !date || !time || !name || !phone || !email || !price) {
     return Response.json({ error: "Verplichte velden ontbreken." }, { status: 400 })
+  }
+
+  if (isTooSoonForPublicBooking(date, time, 60)) {
+    return Response.json(
+      {
+        success: false,
+        code: "TOO_SOON",
+        message: "Voor ritten binnen 60 minuten kunt u direct bellen of WhatsAppen.",
+      },
+      { status: 400 }
+    )
   }
 
   const mollieApiKey = process.env.MOLLIE_API_KEY

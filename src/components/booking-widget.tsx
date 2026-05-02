@@ -1,9 +1,10 @@
 ﻿"use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { formatCurrencyEUR } from "@/lib/format"
+import AddressAutocomplete from "@/components/address-autocomplete"
 import {
   MapPin,
   CalendarDays,
@@ -52,7 +53,7 @@ function makeWhatsappLink(params: {
 }
 
 const inputBase =
-  "w-full rounded-lg border border-white/[0.09] bg-white/[0.04] h-11 text-sm text-white placeholder:text-white/30 outline-none focus:border-[#D4B896]/40 focus:bg-white/[0.07] transition-colors"
+  "w-full min-w-0 rounded-lg border border-white/[0.09] bg-white/[0.04] h-11 text-[16px] sm:text-sm text-white placeholder:text-white/30 outline-none focus:border-[#D4B896]/40 focus:bg-white/[0.07] transition-colors"
 
 export function BookingWidget() {
   const [step, setStep] = useState<"form" | "price">("form")
@@ -65,55 +66,17 @@ export function BookingWidget() {
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
   const [email, setEmail] = useState("")
+  const [originPlaceId, setOriginPlaceId] = useState<string | undefined>(undefined)
+  const [destinationPlaceId, setDestinationPlaceId] = useState<string | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-
-  const originRef = useRef<HTMLInputElement>(null)
-  const destRef = useRef<HTMLInputElement>(null)
-  const acInitDone = useRef(false)
+  const [tooSoonMessage, setTooSoonMessage] = useState("")
 
   const vehicleType: "taxi" | "taxibus" = passengers >= 5 ? "taxibus" : "taxi"
 
-  const initAutocomplete = useCallback(() => {
-    if (acInitDone.current) return
-    if (typeof google === "undefined" || !google.maps?.places) return
-    if (!originRef.current || !destRef.current) return
-
-    acInitDone.current = true
-
-    const opts: google.maps.places.AutocompleteOptions = {
-      componentRestrictions: { country: "nl" },
-      fields: ["formatted_address", "name"],
-    }
-
-    const originAC = new google.maps.places.Autocomplete(originRef.current, opts)
-    originAC.addListener("place_changed", () => {
-      const p = originAC.getPlace()
-      setOrigin(p.formatted_address ?? p.name ?? originRef.current?.value ?? "")
-    })
-
-    const destAC = new google.maps.places.Autocomplete(destRef.current, opts)
-    destAC.addListener("place_changed", () => {
-      const p = destAC.getPlace()
-      setDestination(p.formatted_address ?? p.name ?? destRef.current?.value ?? "")
-    })
-  }, [])
-
-  useEffect(() => {
-    let tries = 0
-    const check = () => {
-      if (typeof google !== "undefined" && google.maps?.places) {
-        initAutocomplete()
-        return
-      }
-      if (tries++ < 60) setTimeout(check, 300)
-    }
-    check()
-  }, [initAutocomplete])
-
   async function handleCalculatePrice() {
-    const originVal = originRef.current?.value.trim() ?? origin.trim()
-    const destVal = destRef.current?.value.trim() ?? destination.trim()
+    const originVal = origin.trim()
+    const destVal = destination.trim()
 
     if (!originVal || !destVal || !date || !time) {
       setError("Vul alle velden in om een tarief te berekenen.")
@@ -123,6 +86,7 @@ export function BookingWidget() {
     setOrigin(originVal)
     setDestination(destVal)
     setError("")
+    setTooSoonMessage("")
     setLoading(true)
 
     try {
@@ -130,11 +94,12 @@ export function BookingWidget() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          origin: originVal,
-          destination: destVal,
+          origin: { address: originVal, placeId: originPlaceId },
+          destination: { address: destVal, placeId: destinationPlaceId },
           date,
           time,
           vehicleType,
+          passengers,
         }),
       })
       const data = await res.json()
@@ -154,6 +119,7 @@ export function BookingWidget() {
       return
     }
     setError("")
+    setTooSoonMessage("")
     setLoading(true)
 
     try {
@@ -176,7 +142,13 @@ export function BookingWidget() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? "Boeking mislukt.")
+      if (!res.ok) {
+        if (data?.code === "TOO_SOON") {
+          setTooSoonMessage(data?.message || "Voor ritten binnen 60 minuten kunt u direct bellen of WhatsAppen.")
+          return
+        }
+        throw new Error(data.error ?? "Boeking mislukt.")
+      }
       const checkoutUrl = data.checkoutUrl as string | undefined
       if (!checkoutUrl) throw new Error("Geen betaalpagina ontvangen.")
       window.location.href = checkoutUrl
@@ -189,15 +161,15 @@ export function BookingWidget() {
 
   if (step === "price" && priceResult) {
     return (
-      <div className="rounded-2xl border border-white/[0.09] bg-[#111111] p-6 shadow-2xl">
-        <div className="mb-5 flex items-center justify-between">
+      <div className="w-full max-w-[calc(100vw-32px)] rounded-2xl border border-white/[0.09] bg-[#111111] p-4 shadow-2xl sm:max-w-none sm:p-6">
+        <div className="mb-5 flex items-center justify-between gap-2">
           <p className="text-sm font-semibold text-white">Boeking bevestigen</p>
           <button
             onClick={() => {
               setStep("form")
               setError("")
             }}
-            className="flex items-center gap-1 text-xs text-white/30 hover:text-white/60 transition-colors"
+            className="flex shrink-0 items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-colors"
           >
             <ArrowLeft className="size-3" /> Wijzigen
           </button>
@@ -234,11 +206,20 @@ export function BookingWidget() {
         </div>
 
         {error && <p className="mb-3 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</p>}
+        {tooSoonMessage ? (
+          <div className="mb-3 rounded-lg border border-[#D6B58A]/30 bg-[#D6B58A]/10 px-3 py-2 text-xs text-[#D6B58A]">
+            <p>{tooSoonMessage}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <a href="tel:+31853038136" className="rounded-md border border-[#3A2D1F] px-2.5 py-1 font-semibold text-[#D6B58A] hover:bg-[#1B1815]">Bel direct</a>
+              <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" className="rounded-md border border-[#25D366]/30 px-2.5 py-1 font-semibold text-[#25D366] hover:bg-[#25D366]/10">WhatsApp</a>
+            </div>
+          </div>
+        ) : null}
 
         <Button
           onClick={handleBook}
           disabled={loading}
-          className="mb-2.5 w-full h-12 border border-[#D4B896]/40 bg-[#D4B896]/[0.08] text-[#D4B896] font-semibold text-[15px] hover:bg-[#D4B896]/[0.16] rounded-xl disabled:opacity-50"
+          className="mb-2.5 h-12 w-full rounded-xl border border-[#D4B896]/40 bg-[#D4B896]/[0.08] text-[15px] font-semibold text-[#D4B896] hover:bg-[#D4B896]/[0.16] disabled:opacity-50"
         >
           {loading ? <Loader2 className="size-4 animate-spin" /> : <>Boeking bevestigen & betalen <ArrowRight className="size-4" /></>}
         </Button>
@@ -257,24 +238,39 @@ export function BookingWidget() {
   }
 
   return (
-    <div className="rounded-2xl border border-white/[0.09] bg-[#111111] p-6 shadow-2xl">
-      <p className="mb-5 text-sm font-semibold text-white">Rit reserveren</p>
+    <div className="atb-booking-glow w-full max-w-[calc(100vw-32px)] rounded-2xl border border-white/[0.09] bg-[#111111] p-4 shadow-2xl sm:max-w-none sm:p-6">
+      <p className="mb-4 text-sm font-semibold text-white">Rit reserveren</p>
 
       <div className="space-y-2.5">
-        <div className="relative">
-          <MapPin className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-white/25" />
-          <input ref={originRef} type="text" placeholder="Uw vertrekpunt" defaultValue={origin} onChange={(e) => setOrigin(e.target.value)} className={cn(inputBase, "pl-10 pr-4")} />
+        <div className="relative min-w-0">
+          <MapPin className="pointer-events-none absolute left-3.5 top-[21px] size-4 text-white/25" />
+          <AddressAutocomplete
+            value={origin}
+            onChange={setOrigin}
+            onPlaceSelect={(place) => setOriginPlaceId(place.placeId)}
+            placeholder="Uw vertrekpunt"
+            inputClassName={cn(inputBase, "pl-10 pr-4")}
+            wrapperClassName="w-full min-w-0"
+          />
         </div>
 
-        <div className="relative">
-          <MapPin className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#D4B896]/50" />
-          <input ref={destRef} type="text" placeholder="Uw bestemming" defaultValue={destination} onChange={(e) => setDestination(e.target.value)} className={cn(inputBase, "pl-10 pr-4")} />
+        <div className="relative min-w-0">
+          <MapPin className="pointer-events-none absolute left-3.5 top-[21px] size-4 text-[#D4B896]/50" />
+          <AddressAutocomplete
+            value={destination}
+            onChange={setDestination}
+            onPlaceSelect={(place) => setDestinationPlaceId(place.placeId)}
+            placeholder="Uw bestemming"
+            inputClassName={cn(inputBase, "pl-10 pr-4")}
+            wrapperClassName="w-full min-w-0"
+          />
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className="relative">
+        <div className="grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-2">
+          <div className="relative min-w-0">
             <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-white/25" />
             <input
+              aria-label="Datum"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -282,9 +278,10 @@ export function BookingWidget() {
               className={cn(inputBase, "pl-10 pr-2 text-white/70", "[&::-webkit-calendar-picker-indicator]:opacity-30 [&::-webkit-calendar-picker-indicator]:invert")}
             />
           </div>
-          <div className="relative">
+          <div className="relative min-w-0">
             <Clock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-white/25" />
             <input
+              aria-label="Tijd"
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
@@ -299,9 +296,10 @@ export function BookingWidget() {
             Aantal passagiers
           </label>
           <select
+            aria-label="Aantal passagiers"
             value={passengers}
             onChange={(e) => setPassengers(Number(e.target.value))}
-            className="h-11 w-full rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-sm text-white outline-none focus:border-[#D4B896]/40"
+            className="h-11 w-full min-w-0 rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-[16px] text-white outline-none focus:border-[#D4B896]/40 sm:text-sm"
           >
             {[1, 2, 3, 4, 5, 6, 7, 8].map((p) => (
               <option key={p} value={p} className="bg-[#111111]">
@@ -318,16 +316,15 @@ export function BookingWidget() {
       <Button
         onClick={handleCalculatePrice}
         disabled={loading}
-        className="mt-5 w-full h-12 border border-[#D4B896]/40 bg-[#D4B896]/[0.08] text-[#D4B896] font-semibold text-[15px] hover:bg-[#D4B896]/[0.16] rounded-xl disabled:opacity-50"
+        className="atb-calc-cta mt-4 h-12 w-full rounded-xl border border-[#D4B896]/40 bg-[#D4B896]/[0.08] text-[15px] font-semibold text-[#D4B896] hover:bg-[#D4B896]/[0.16] disabled:opacity-50"
       >
         {loading ? <Loader2 className="size-4 animate-spin" /> : "Tarief berekenen"}
       </Button>
 
-      <p className="mt-4 text-center text-[11px] leading-relaxed text-[#8F877D] tracking-wide">
+      <p className="mt-3 text-center text-[11px] leading-relaxed text-[#8F877D] tracking-wide">
         <span className="hidden sm:inline">4,9/5 beoordeling · Pin · Creditcard · Contant</span>
         <span className="sm:hidden">4,9/5 · Pin · Creditcard · Contant</span>
       </p>
     </div>
   )
 }
-

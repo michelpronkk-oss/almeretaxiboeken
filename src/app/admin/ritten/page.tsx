@@ -1,119 +1,22 @@
 ﻿import Link from "next/link"
 import { redirect } from "next/navigation"
 import CopyButton from "@/components/internal/copy-button"
-import PendingSubmitButton from "@/components/internal/pending-submit-button"
+import AdminAssignDriverControl from "@/components/internal/admin-assign-driver-control"
+import AdminExceptionActions from "@/components/internal/admin-exception-actions"
 import { isAdminAuthenticated } from "@/lib/admin-auth"
-import { sendEmail } from "@/lib/email/send"
-import { driverAssignedRideEmail } from "@/lib/email/templates"
 import { formatCurrencyEUR, formatPassengerVehicle } from "@/lib/format"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 type SearchParams = Promise<{ filter?: string; status?: string; error?: string; warning?: string }>
 
-async function assignDriverAction(formData: FormData) {
-  "use server"
-
-  if (!(await isAdminAuthenticated())) {
-    redirect("/admin/login")
-  }
-
-  const bookingId = String(formData.get("bookingId") || "")
-  const driverId = String(formData.get("driverId") || "")
-
-  if (!bookingId || !driverId) {
-    redirect("/admin/ritten?error=Selecteer%20een%20chauffeur%20en%20rit")
-  }
-
-  const supabase = getSupabaseServiceClient()
-
-  const { data: booking, error: bookingError } = await supabase
-    .from("bookings")
-    .select("id, reference, pickup_address, destination_address, pickup_date, pickup_time, vehicle_type, passengers, estimated_fare, notes, customer_name, customer_phone")
-    .eq("id", bookingId)
-    .maybeSingle()
-
-  if (bookingError || !booking) {
-    redirect("/admin/ritten?error=Rit%20niet%20gevonden")
-  }
-
-  const { data: driver, error: driverError } = await supabase
-    .from("drivers")
-    .select("id, email")
-    .eq("id", driverId)
-    .maybeSingle()
-
-  if (driverError || !driver) {
-    redirect("/admin/ritten?error=Chauffeur%20niet%20gevonden")
-  }
-
-  const { error: assignError } = await supabase
-    .from("bookings")
-    .update({ assigned_driver_id: driverId, booking_status: "assigned" })
-    .eq("id", bookingId)
-
-  if (assignError) {
-    redirect("/admin/ritten?error=Chauffeur%20toewijzen%20mislukt")
-  }
-
-  await supabase.from("booking_events").insert({
-    booking_id: bookingId,
-    event_type: "driver_assigned",
-    actor_type: "admin",
-    actor_id: null,
-    note: "Driver assigned by admin",
-  })
-
-  let warning = ""
-
-  if (driver.email) {
-    const mail = driverAssignedRideEmail({
-      reference: booking.reference,
-      origin: booking.pickup_address || "-",
-      destination: booking.destination_address || "-",
-      date: booking.pickup_date || "-",
-      time: booking.pickup_time || "-",
-      customerName: booking.customer_name || "-",
-      customerPhone: booking.customer_phone || "-",
-      vehicleType: booking.vehicle_type || "taxi",
-      passengers: booking.passengers ?? undefined,
-      price: typeof booking.estimated_fare === "number" ? booking.estimated_fare : Number(booking.estimated_fare ?? 0),
-      notes: booking.notes || undefined,
-    })
-
-    const sendResult = await sendEmail({
-      to: driver.email,
-      subject: mail.subject,
-      html: mail.html,
-      text: mail.text,
-      from: process.env.DRIVER_INVITE_FROM_EMAIL || process.env.RESEND_FROM_EMAIL,
-    })
-
-    if (sendResult.sent) {
-      await supabase.from("booking_events").insert({
-        booking_id: bookingId,
-        event_type: "driver_notified",
-        actor_type: "system",
-        note: "Driver assignment email sent",
-      })
-    } else {
-      await supabase.from("booking_events").insert({
-        booking_id: bookingId,
-        event_type: "driver_notification_failed",
-        actor_type: "system",
-        note: sendResult.error || sendResult.reason || "Driver assignment email failed",
-      })
-      console.error("[admin-assign-driver] email failed", sendResult.error || sendResult.reason || "unknown")
-      warning = "Chauffeur toegewezen, maar e-mailnotificatie is niet verzonden."
-    }
-  }
-
-  const qs = warning ? `?status=${encodeURIComponent("Chauffeur toegewezen.")}&warning=${encodeURIComponent(warning)}` : "?status=Chauffeur%20toegewezen."
-  redirect(`/admin/ritten${qs}`)
-}
-
 function sourceLabel(source: string | null | undefined, manualCreated: boolean | null | undefined) {
   if (manualCreated || source === "admin_manual") return "Handmatig"
   return "Website"
+}
+
+const statusBadge: Record<string, string> = {
+  no_show_reported: "No-show gemeld",
+  issue_reported: "Probleem gemeld",
 }
 
 export default async function AdminRittenPage({ searchParams }: { searchParams: SearchParams }) {
@@ -138,9 +41,11 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
     .order("created_at", { ascending: false })
 
   if (filter === "niet-toegewezen") query = query.eq("booking_status", "unassigned")
-  if (filter === "toegewezen") query = query.eq("booking_status", "assigned")
+  if (filter === "toegewezen") query = query.in("booking_status", ["assigned", "accepted", "on_the_way", "arrived", "in_progress"])
   if (filter === "afgerond") query = query.eq("booking_status", "completed")
   if (filter === "vandaag") query = query.eq("pickup_date", today)
+  if (filter === "problemen") query = query.eq("booking_status", "issue_reported")
+  if (filter === "no-show") query = query.eq("booking_status", "no_show_reported")
 
   const { data: bookings } = await query.limit(200)
 
@@ -149,6 +54,8 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
     { id: "niet-toegewezen", label: "Niet toegewezen" },
     { id: "toegewezen", label: "Toegewezen" },
     { id: "vandaag", label: "Vandaag" },
+    { id: "problemen", label: "Problemen" },
+    { id: "no-show", label: "No-show" },
     { id: "afgerond", label: "Afgerond" },
   ]
 
@@ -182,6 +89,9 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
             <div className="flex items-center gap-2">
               <p className="font-semibold">{booking.reference}</p>
               <span className="rounded-full border border-[#292520] bg-[#0D0C0B] px-2 py-0.5 text-[10px] text-[#B7AEA2]">{sourceLabel(booking.source, booking.manual_created)}</span>
+              {statusBadge[booking.booking_status || ""] ? (
+                <span className="rounded-full border border-[#D6B58A]/40 bg-[#D6B58A]/10 px-2 py-0.5 text-[10px] text-[#D6B58A]">{statusBadge[booking.booking_status || ""]}</span>
+              ) : null}
             </div>
             <p className="text-sm text-[#B7AEA2]">{booking.pickup_date || "-"} {booking.pickup_time || ""}</p>
             <p className="mt-2 text-sm text-[#B7AEA2]">{booking.pickup_address} {"->"} {booking.destination_address}</p>
@@ -198,20 +108,13 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
               </div>
             ) : null}
 
-            <form action={assignDriverAction} className="mt-3 space-y-2">
-              <input type="hidden" name="bookingId" value={booking.id} />
-              <select name="driverId" defaultValue={booking.assigned_driver_id ?? ""} className="h-9 w-full rounded-md border border-[#292520] bg-[#0D0C0B] px-2 text-sm">
-                <option value="">Selecteer chauffeur</option>
-                {drivers?.map((d) => (
-                  <option key={d.id} value={d.id}>{d.full_name}</option>
-                ))}
-              </select>
-              <PendingSubmitButton
-                idleLabel="Toewijzen"
-                pendingLabel="Toewijzen..."
-                className="w-full rounded-md border border-[#3A2D1F] px-3 py-1.5 text-xs font-semibold text-[#D6B58A] hover:bg-[#1B1815]"
-              />
-            </form>
+            <div className="mt-3">
+              <AdminAssignDriverControl bookingId={booking.id} initialDriverId={booking.assigned_driver_id} drivers={(drivers || []).map((d) => ({ id: d.id, full_name: d.full_name }))} />
+            </div>
+
+            {booking.booking_status === "no_show_reported" || booking.booking_status === "issue_reported" ? (
+              <AdminExceptionActions bookingId={booking.id} />
+            ) : null}
           </article>
         ))}
       </div>
@@ -236,6 +139,9 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
                 <td className="px-3 py-3 font-semibold">
                   <div>{booking.reference}</div>
                   <span className="mt-1 inline-block rounded-full border border-[#292520] bg-[#0D0C0B] px-2 py-0.5 text-[10px] text-[#B7AEA2]">{sourceLabel(booking.source, booking.manual_created)}</span>
+                  {statusBadge[booking.booking_status || ""] ? (
+                    <div className="mt-1"><span className="rounded-full border border-[#D6B58A]/40 bg-[#D6B58A]/10 px-2 py-0.5 text-[10px] text-[#D6B58A]">{statusBadge[booking.booking_status || ""]}</span></div>
+                  ) : null}
                 </td>
                 <td className="px-3 py-3 text-[#B7AEA2]">{booking.pickup_date || "-"} {booking.pickup_time || ""}</td>
                 <td className="px-3 py-3 text-[#B7AEA2]"><div>{booking.pickup_address}</div><div className="text-[#8F877D]">{booking.destination_address}</div></td>
@@ -250,21 +156,11 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
                     </div>
                   ) : <span className="text-[#8F877D]">-</span>}
                 </td>
-                <td className="px-3 py-3">
-                  <form action={assignDriverAction} className="space-y-2">
-                    <input type="hidden" name="bookingId" value={booking.id} />
-                    <select name="driverId" defaultValue={booking.assigned_driver_id ?? ""} className="h-9 w-44 rounded-md border border-[#292520] bg-[#0D0C0B] px-2 text-sm">
-                      <option value="">Selecteer chauffeur</option>
-                      {drivers?.map((d) => (
-                        <option key={d.id} value={d.id}>{d.full_name}</option>
-                      ))}
-                    </select>
-                    <PendingSubmitButton
-                      idleLabel="Toewijzen"
-                      pendingLabel="Toewijzen..."
-                      className="w-full rounded-md border border-[#3A2D1F] px-3 py-1.5 text-xs font-semibold text-[#D6B58A] hover:bg-[#1B1815]"
-                    />
-                  </form>
+                <td className="px-3 py-3 w-64">
+                  <AdminAssignDriverControl bookingId={booking.id} initialDriverId={booking.assigned_driver_id} drivers={(drivers || []).map((d) => ({ id: d.id, full_name: d.full_name }))} />
+                  {booking.booking_status === "no_show_reported" || booking.booking_status === "issue_reported" ? (
+                    <AdminExceptionActions bookingId={booking.id} />
+                  ) : null}
                 </td>
               </tr>
             ))}
