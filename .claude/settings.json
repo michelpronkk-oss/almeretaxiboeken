@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npm install *)",
-      "Bash(findstr -i \"framer\")"
+      "Bash(findstr -i \"framer\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\miche\\\\Desktop\\\\taxiboekenalmere-v2\\\\src\\\\app\\\\chauffeur\" -Recurse -File)",
+      "Bash(Select-Object FullName)"
     ]
   }
 }

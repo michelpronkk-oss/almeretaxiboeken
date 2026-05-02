@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
@@ -214,7 +214,7 @@ export function BookingWidget() {
             <span className="truncate">{destination}</span>
           </div>
           <p className="mt-2.5 text-white/30">
-            {priceResult.distanceKm} km � ca. {priceResult.durationMin} min � {passengers} {passengers === 1 ? "persoon" : "personen"}
+            {priceResult.distanceKm} km · ca. {priceResult.durationMin} min · {passengers} {passengers === 1 ? "persoon" : "personen"}
           </p>
         </div>
 
@@ -222,7 +222,7 @@ export function BookingWidget() {
           <p className="mb-1 text-xs text-[#D4B896]/60">Vaste prijs</p>
           <p className="text-3xl font-black text-[#D4B896]">{formatCurrencyEUR(priceResult.price)}</p>
           <p className="mt-1 text-[10px] text-white/25">
-            Starttarief {formatCurrencyEUR(priceResult.starttarief)} + {priceResult.distanceKm} km � {formatCurrencyEUR(priceResult.kmTarief)}
+            Starttarief {formatCurrencyEUR(priceResult.starttarief)} + {priceResult.distanceKm} km · {formatCurrencyEUR(priceResult.kmTarief)}
             {vehicleType === "taxibus" ? " (taxibus)" : " (taxi)"}
           </p>
         </div>
@@ -323,9 +323,11 @@ export function BookingWidget() {
         {loading ? <Loader2 className="size-4 animate-spin" /> : "Tarief berekenen"}
       </Button>
 
-      <p className="mt-4 text-center text-[11px] text-white/25 tracking-wide">
-        ? 4,9/5 beoordeling � Pin � Creditcard � Contant
+      <p className="mt-4 text-center text-[11px] leading-relaxed text-[#8F877D] tracking-wide">
+        <span className="hidden sm:inline">4,9/5 beoordeling · Pin · Creditcard · Contant</span>
+        <span className="sm:hidden">4,9/5 · Pin · Creditcard · Contant</span>
       </p>
     </div>
   )
 }
+

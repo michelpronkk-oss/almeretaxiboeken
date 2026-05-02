@@ -11,7 +11,6 @@ async function requestLoginLinkAction(formData: FormData) {
   "use server"
 
   const email = String(formData.get("email") || "").trim().toLowerCase()
-  console.info("[chauffeur-login-link] email received", Boolean(email))
 
   if (!email || !email.includes("@")) {
     redirect("/chauffeur/login?sent=1")
@@ -24,39 +23,29 @@ async function requestLoginLinkAction(formData: FormData) {
     .eq("email", email)
     .maybeSingle()
 
-  const driverFound = Boolean(driver)
-  const driverActive = Boolean(driver?.active)
-  const approvalStatus = driver?.approval_status || "none"
-  const resendConfigured = Boolean(process.env.RESEND_API_KEY && (process.env.DRIVER_INVITE_FROM_EMAIL || process.env.RESEND_FROM_EMAIL))
-  const canSend = Boolean(driver && driver.active && driver.approval_status === "approved")
-
-  console.info("[chauffeur-login-link] driver found", driverFound)
-  console.info("[chauffeur-login-link] driver active", driverActive)
-  console.info("[chauffeur-login-link] approval_status", approvalStatus)
-  console.info("[chauffeur-login-link] resend env exists", resendConfigured)
-  console.info("[chauffeur-login-link] send attempted", canSend)
+  const canSend = Boolean(
+    driver && driver.active && driver.approval_status === "approved"
+  )
 
   if (canSend && driver) {
     try {
       const token = await createDriverAccessToken(driver.id, 30)
-      console.info("[chauffeur-login-link] token stored", true)
-
       const sendResult = await sendDriverLoginLinkEmail(driver.email, token)
-      if (sendResult.sent) {
-        console.info("[chauffeur-login-link] resend sent", true)
-        console.info("[chauffeur-login-link] resend id", sendResult.id || "no-id")
-      } else {
-        console.info("[chauffeur-login-link] resend sent", false)
-        console.error("[chauffeur-login-link] resend error", sendResult.error || sendResult.reason || "unknown")
-        if (process.env.NODE_ENV !== "production") {
-          redirect(`/chauffeur/login?sent=1&debug=${encodeURIComponent(sendResult.error || sendResult.reason || "send_failed")}`)
-        }
+
+      if (!sendResult.sent && process.env.NODE_ENV !== "production") {
+        redirect(
+          `/chauffeur/login?sent=1&debug=${encodeURIComponent(
+            sendResult.error || sendResult.reason || "send_failed"
+          )}`
+        )
       }
     } catch (error) {
-      console.info("[chauffeur-login-link] token stored", false)
-      console.error("[chauffeur-login-link] resend error", error instanceof Error ? error.message : "unknown")
       if (process.env.NODE_ENV !== "production") {
-        redirect(`/chauffeur/login?sent=1&debug=${encodeURIComponent(error instanceof Error ? error.message : "send_failed")}`)
+        redirect(
+          `/chauffeur/login?sent=1&debug=${encodeURIComponent(
+            error instanceof Error ? error.message : "send_failed"
+          )}`
+        )
       }
     }
   }
@@ -64,49 +53,93 @@ async function requestLoginLinkAction(formData: FormData) {
   redirect("/chauffeur/login?sent=1")
 }
 
-export default async function ChauffeurLoginPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function ChauffeurLoginPage({
+  searchParams,
+}: {
+  searchParams: SearchParams
+}) {
   const existing = await getChauffeurSession()
   if (existing) redirect("/chauffeur")
 
   const params = await searchParams
 
   return (
-    <section className="mx-auto flex min-h-screen max-w-md items-center px-6 py-16">
-      <div className="w-full rounded-2xl border border-[#292520] bg-[#141210] p-6">
-        <h1 className="text-2xl font-semibold">Chauffeur login</h1>
-        <p className="mt-2 text-sm text-[#B7AEA2]">Vul uw e-mailadres in. Als uw profiel is goedgekeurd, ontvangt u een beveiligde inloglink.</p>
-
-        {params.error ? (
-          <p className="mt-3 rounded-md border border-[#D94A4A]/30 bg-[#D94A4A]/10 px-3 py-2 text-xs text-[#ffb4b4]">
-            De inloglink is ongeldig of verlopen. Vraag een nieuwe inloglink aan.
+    <div className="flex min-h-screen items-center justify-center px-4 py-16">
+      <div className="w-full max-w-sm">
+        {/* Brand */}
+        <div className="mb-8 text-center">
+          <p className="text-base font-semibold text-[#F5F1E8]">
+            AlmereTaxi<span className="text-[#D6B58A]">Boeken</span>
           </p>
-        ) : null}
+          <p className="mt-1 text-xs text-[#7F776E]">Chauffeurportaal</p>
+        </div>
 
-        {params.sent === "1" ? (
-          <div className="mt-3 rounded-md border border-[#22A06B]/30 bg-[#22A06B]/10 px-3 py-2 text-xs text-[#9de2c5]">
-            <p className="font-semibold">Controleer uw inbox</p>
-            <p className="mt-1">Als dit e-mailadres is goedgekeurd, ontvangt u binnen enkele minuten een inloglink.</p>
-            {process.env.NODE_ENV !== "production" && params.debug ? (
-              <p className="mt-2 text-[#B7AEA2]">Dev debug: {params.debug}</p>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="rounded-2xl border border-[#292520] bg-[#0D0C0B] p-6">
+          <h1 className="text-lg font-bold text-[#F5F1E8]">Inloggen</h1>
+          <p className="mt-1.5 text-xs leading-relaxed text-[#7F776E]">
+            Vul uw e-mailadres in. Als uw profiel is goedgekeurd, ontvangt u een
+            beveiligde inloglink.
+          </p>
 
-        <form action={requestLoginLinkAction} className="mt-5 space-y-3">
-          <input
-            type="email"
-            name="email"
-            required
-            className="h-11 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] outline-none focus:border-[#D6B58A]"
-            placeholder="naam@voorbeeld.nl"
-          />
-          <PendingSubmitButton
-            idleLabel="Inloglink versturen"
-            pendingLabel="Versturen..."
-            className="rounded-lg border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815]"
-          />
-        </form>
+          {/* Error state */}
+          {params.error && (
+            <div className="mt-4 rounded-lg border border-[#D94A4A]/20 bg-[#D94A4A]/[0.06] px-3 py-3">
+              <p className="text-xs font-medium text-[#D94A4A]">Inloglink ongeldig</p>
+              <p className="mt-0.5 text-xs text-[#D94A4A]/70">
+                De link is verlopen of al gebruikt. Vraag hieronder een nieuwe aan.
+              </p>
+            </div>
+          )}
+
+          {/* Sent confirmation */}
+          {params.sent === "1" ? (
+            <div className="mt-4 rounded-lg border border-[#22A06B]/20 bg-[#22A06B]/[0.06] px-3 py-3">
+              <p className="text-xs font-semibold text-[#22A06B]">Controleer uw inbox</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-[#22A06B]/70">
+                Als dit e-mailadres is goedgekeurd, ontvangt u binnen enkele minuten een
+                inloglink.
+              </p>
+              {process.env.NODE_ENV !== "production" && params.debug && (
+                <p className="mt-2 text-[11px] text-[#7F776E]">Dev: {params.debug}</p>
+              )}
+            </div>
+          ) : (
+            <form action={requestLoginLinkAction} className="mt-5 space-y-3">
+              <input
+                type="email"
+                name="email"
+                required
+                autoComplete="email"
+                placeholder="naam@voorbeeld.nl"
+                className="h-11 w-full rounded-xl border border-[#292520] bg-[#141210] px-3 text-sm text-[#F5F1E8] outline-none placeholder:text-[#7F776E] focus:border-[#D6B58A]/50 focus:bg-[#1B1815]"
+              />
+              <PendingSubmitButton
+                idleLabel="Inloglink versturen"
+                pendingLabel="Versturen…"
+                className="h-11 w-full rounded-xl border border-[#D6B58A]/40 bg-[#D6B58A]/[0.08] text-sm font-semibold text-[#D6B58A] hover:bg-[#D6B58A]/[0.15]"
+              />
+            </form>
+          )}
+
+          {params.sent === "1" && (
+            <form action={requestLoginLinkAction} className="mt-4 space-y-3">
+              <input
+                type="email"
+                name="email"
+                required
+                autoComplete="email"
+                placeholder="naam@voorbeeld.nl"
+                className="h-11 w-full rounded-xl border border-[#292520] bg-[#141210] px-3 text-sm text-[#F5F1E8] outline-none placeholder:text-[#7F776E] focus:border-[#D6B58A]/50 focus:bg-[#1B1815]"
+              />
+              <PendingSubmitButton
+                idleLabel="Opnieuw versturen"
+                pendingLabel="Versturen…"
+                className="h-11 w-full rounded-xl border border-[#292520] bg-transparent text-sm font-semibold text-[#B7AEA2] hover:bg-[#141210]"
+              />
+            </form>
+          )}
+        </div>
       </div>
-    </section>
+    </div>
   )
 }

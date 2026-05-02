@@ -1,4 +1,4 @@
-export interface EmailDetailItem {
+﻿export interface EmailDetailItem {
   label: string
   value: string
 }
@@ -108,7 +108,7 @@ export function renderBaseEmail(input: BaseEmailInput) {
               <td style="padding:14px 8px 0;">
                 <p style="margin:0;color:#7F776E;font-size:12px;line-height:1.5;">AlmereTaxiBoeken</p>
                 <p style="margin:4px 0 0;color:#7F776E;font-size:12px;line-height:1.5;">Deze e-mail is automatisch verzonden door AlmereTaxiBoeken.</p>
-                <p style="margin:4px 0 0;color:#7F776E;font-size:12px;line-height:1.5;">� ${now} AlmereTaxiBoeken</p>
+                <p style="margin:4px 0 0;color:#7F776E;font-size:12px;line-height:1.5;">&copy; ${now} AlmereTaxiBoeken</p>
               </td>
             </tr>
           </table>
@@ -146,3 +146,4 @@ export function renderBaseEmail(input: BaseEmailInput) {
     text: textParts.join("\n"),
   }
 }
+
