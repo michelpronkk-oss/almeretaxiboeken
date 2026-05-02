@@ -1,10 +1,10 @@
-﻿import Link from "next/link"
+import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getDriverSessionId } from "@/lib/driver-auth"
+import { getAuthenticatedDriverId } from "@/lib/driver-auth"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 export default async function ChauffeurPage() {
-  const driverId = await getDriverSessionId()
+  const driverId = await getAuthenticatedDriverId()
   if (!driverId) {
     redirect("/chauffeur/login")
   }
@@ -55,10 +55,6 @@ export default async function ChauffeurPage() {
       <Link href="/chauffeur/ritten" className="inline-flex rounded-lg border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815]">
         Naar rittenoverzicht
       </Link>
-
-      <p className="text-xs text-[#7F776E]">
-        TODO: vervang deze interne v1 cookie-login met Supabase Auth voor productiebrede uitrol.
-      </p>
     </section>
   )
 }

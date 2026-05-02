@@ -1,7 +1,10 @@
 import Link from "next/link"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import PendingSubmitButton from "@/components/internal/pending-submit-button"
 import { isAdminAuthenticated } from "@/lib/admin-auth"
+import { createDriverAccessToken } from "@/lib/driver-access"
+import { sendDriverApprovedEmail } from "@/lib/driver-access-email"
 import { sendDriverInviteEmail } from "@/lib/driver-invite-email"
 import { generateInviteToken, hashInviteToken, inviteExpiresAt } from "@/lib/driver-invite"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
@@ -11,6 +14,8 @@ type SearchParams = Promise<{
   email?: string
   inviteLink?: string
   error?: string
+  actionStatus?: string
+  actionError?: string
 }>
 
 function getSiteUrl() {
@@ -120,18 +125,16 @@ async function resendInviteAction(formData: FormData) {
   const result = await createInvite(email)
 
   if (!result.ok) {
-    redirect(`/admin/chauffeurs?error=${encodeURIComponent(result.error)}`)
+    redirect(`/admin/chauffeurs?actionError=${encodeURIComponent(result.error)}`)
   }
 
   revalidatePath("/admin/chauffeurs")
 
   if (!result.sent) {
-    redirect(
-      `/admin/chauffeurs?sent=1&email=${encodeURIComponent(result.email)}&inviteLink=${encodeURIComponent(result.onboardingUrl)}`,
-    )
+    redirect(`/admin/chauffeurs?actionStatus=${encodeURIComponent("Uitnodiging aangemaakt. Resend is niet ingesteld.")}`)
   }
 
-  redirect(`/admin/chauffeurs?sent=1&email=${encodeURIComponent(result.email)}`)
+  redirect(`/admin/chauffeurs?actionStatus=${encodeURIComponent("Uitnodiging verstuurd.")}`)
 }
 
 async function approveDriverAction(formData: FormData) {
@@ -142,20 +145,48 @@ async function approveDriverAction(formData: FormData) {
   const driverId = String(formData.get("driverId") || "")
   if (!driverId) return
 
-  const supabase = getSupabaseServiceClient()
-  await supabase
-    .from("drivers")
-    .update({
-      approval_status: "approved",
-      onboarding_status: "approved",
-      active: true,
-      status: "available",
-      approved_at: new Date().toISOString(),
-      approved_by: "admin",
-    })
-    .eq("id", driverId)
+  try {
+    const supabase = getSupabaseServiceClient()
 
-  revalidatePath("/admin/chauffeurs")
+    const { data: driver, error: driverError } = await supabase
+      .from("drivers")
+      .select("id, email")
+      .eq("id", driverId)
+      .maybeSingle()
+
+    if (driverError || !driver) {
+      redirect(`/admin/chauffeurs?actionError=${encodeURIComponent("Chauffeur niet gevonden.")}`)
+    }
+
+    const { error: approveError } = await supabase
+      .from("drivers")
+      .update({
+        approval_status: "approved",
+        onboarding_status: "approved",
+        active: true,
+        status: "available",
+        approved_at: new Date().toISOString(),
+        approved_by: "admin",
+      })
+      .eq("id", driverId)
+
+    if (approveError) {
+      redirect(`/admin/chauffeurs?actionError=${encodeURIComponent("Goedkeuren mislukt.")}`)
+    }
+
+    const accessToken = await createDriverAccessToken(driver.id, 60 * 24 * 7)
+    const emailResult = await sendDriverApprovedEmail(driver.email, accessToken)
+
+    revalidatePath("/admin/chauffeurs")
+
+    if (!emailResult.sent) {
+      redirect(`/admin/chauffeurs?actionStatus=${encodeURIComponent("Chauffeur goedgekeurd. E-mail niet verzonden (Resend ontbreekt).")}`)
+    }
+
+    redirect(`/admin/chauffeurs?actionStatus=${encodeURIComponent("Chauffeur goedgekeurd en e-mail verzonden.")}`)
+  } catch {
+    redirect(`/admin/chauffeurs?actionError=${encodeURIComponent("Goedkeuren mislukt.")}`)
+  }
 }
 
 async function deactivateDriverAction(formData: FormData) {
@@ -176,6 +207,7 @@ async function deactivateDriverAction(formData: FormData) {
     .eq("id", driverId)
 
   revalidatePath("/admin/chauffeurs")
+  redirect(`/admin/chauffeurs?actionStatus=${encodeURIComponent("Chauffeur gedeactiveerd.")}`)
 }
 
 export default async function AdminChauffeursPage({ searchParams }: { searchParams: SearchParams }) {
@@ -211,9 +243,11 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
             placeholder="naam@voorbeeld.nl"
             className="h-11 flex-1 rounded-md border border-[#292520] bg-[#0D0C0B] px-3 text-sm"
           />
-          <button className="rounded-md border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815]">
-            Uitnodiging versturen
-          </button>
+          <PendingSubmitButton
+            idleLabel="Uitnodiging versturen"
+            pendingLabel="Uitnodiging versturen..."
+            className="rounded-md border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815]"
+          />
         </form>
 
         {params.sent === "1" && params.email ? (
@@ -226,6 +260,14 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
           <p className="mt-3 rounded-md border border-[#D94A4A]/30 bg-[#D94A4A]/10 px-3 py-2 text-xs text-[#ffb4b4]">
             {params.error}
           </p>
+        ) : null}
+
+        {params.actionStatus ? (
+          <p className="mt-3 rounded-md border border-[#22A06B]/30 bg-[#22A06B]/10 px-3 py-2 text-xs text-[#9de2c5]">{params.actionStatus}</p>
+        ) : null}
+
+        {params.actionError ? (
+          <p className="mt-3 rounded-md border border-[#D94A4A]/30 bg-[#D94A4A]/10 px-3 py-2 text-xs text-[#ffb4b4]">{params.actionError}</p>
         ) : null}
 
         {params.inviteLink ? (
@@ -280,26 +322,32 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
                       </Link>
 
                       <form action={resendInviteAction}>
-                        <input type="hidden" name="email" value={driver.email} />
-                        <button className="rounded-md border border-[#3A2D1F] px-2 py-1 text-xs text-[#D6B58A] hover:bg-[#1B1815]">
-                          Opnieuw uitnodigen
-                        </button>
+                        <input type="hidden" name="email" value={driver.email || ""} />
+                        <PendingSubmitButton
+                          idleLabel="Opnieuw uitnodigen"
+                          pendingLabel="Uitnodiging versturen..."
+                          className="rounded-md border border-[#3A2D1F] px-2 py-1 text-xs text-[#D6B58A] hover:bg-[#1B1815]"
+                        />
                       </form>
 
                       {driver.onboarding_status === "submitted" ? (
                         <form action={approveDriverAction}>
                           <input type="hidden" name="driverId" value={driver.id} />
-                          <button className="rounded-md border border-[#22A06B]/40 px-2 py-1 text-xs text-[#9de2c5] hover:bg-[#22A06B]/10">
-                            Goedkeuren
-                          </button>
+                          <PendingSubmitButton
+                            idleLabel="Goedkeuren"
+                            pendingLabel="Goedkeuren..."
+                            className="rounded-md border border-[#22A06B]/40 px-2 py-1 text-xs text-[#9de2c5] hover:bg-[#22A06B]/10"
+                          />
                         </form>
                       ) : null}
 
                       <form action={deactivateDriverAction}>
                         <input type="hidden" name="driverId" value={driver.id} />
-                        <button className="rounded-md border border-[#D94A4A]/40 px-2 py-1 text-xs text-[#ffb4b4] hover:bg-[#D94A4A]/10">
-                          Deactiveren
-                        </button>
+                        <PendingSubmitButton
+                          idleLabel="Deactiveren"
+                          pendingLabel="Deactiveren..."
+                          className="rounded-md border border-[#D94A4A]/40 px-2 py-1 text-xs text-[#ffb4b4] hover:bg-[#D94A4A]/10"
+                        />
                       </form>
                     </div>
                   </td>

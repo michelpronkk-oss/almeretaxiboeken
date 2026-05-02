@@ -1,30 +1,33 @@
-﻿import { redirect } from "next/navigation"
-import { getDriverSessionId, setDriverAuthCookie } from "@/lib/driver-auth"
+import { redirect } from "next/navigation"
+import { getDriverSessionId } from "@/lib/driver-auth"
+import { createDriverAccessToken } from "@/lib/driver-access"
+import { sendDriverLoginLinkEmail } from "@/lib/driver-access-email"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
+import PendingSubmitButton from "@/components/internal/pending-submit-button"
 
-type SearchParams = Promise<{ error?: string }>
+type SearchParams = Promise<{ sent?: string }>
 
-async function loginAction(formData: FormData) {
+async function requestLoginLinkAction(formData: FormData) {
   "use server"
 
-  const driverId = String(formData.get("driverId") || "").trim()
-  const submittedCode = String(formData.get("accessCode") || "").trim()
-  const requiredCode = (process.env.DRIVER_ACCESS_PASSWORD || "").trim()
-
-  if (!driverId) redirect("/chauffeur/login?error=1")
-  if (requiredCode && submittedCode !== requiredCode) redirect("/chauffeur/login?error=1")
+  const email = String(formData.get("email") || "").trim().toLowerCase()
+  if (!email || !email.includes("@")) {
+    redirect("/chauffeur/login?sent=1")
+  }
 
   const supabase = getSupabaseServiceClient()
   const { data: driver } = await supabase
     .from("drivers")
-    .select("id, active")
-    .eq("id", driverId)
+    .select("id, email, active, approval_status")
+    .eq("email", email)
     .maybeSingle()
 
-  if (!driver || !driver.active) redirect("/chauffeur/login?error=1")
+  if (driver && driver.active && driver.approval_status === "approved") {
+    const token = await createDriverAccessToken(driver.id, 30)
+    await sendDriverLoginLinkEmail(driver.email, token)
+  }
 
-  await setDriverAuthCookie(driverId)
-  redirect("/chauffeur")
+  redirect("/chauffeur/login?sent=1")
 }
 
 export default async function ChauffeurLoginPage({ searchParams }: { searchParams: SearchParams }) {
@@ -37,34 +40,29 @@ export default async function ChauffeurLoginPage({ searchParams }: { searchParam
     <section className="mx-auto flex min-h-screen max-w-md items-center px-6 py-16">
       <div className="w-full rounded-2xl border border-[#292520] bg-[#141210] p-6">
         <h1 className="text-2xl font-semibold">Chauffeur login</h1>
-        <p className="mt-2 text-sm text-[#B7AEA2]">Log in om uw toegewezen ritten te bekijken.</p>
+        <p className="mt-2 text-sm text-[#B7AEA2]">Vul uw e-mailadres in. Als uw profiel is goedgekeurd, ontvangt u een beveiligde inloglink.</p>
 
-        {params.error ? (
-          <p className="mt-3 rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-300">Inloggen mislukt. Controleer uw gegevens.</p>
+        {params.sent === "1" ? (
+          <div className="mt-3 rounded-md border border-[#22A06B]/30 bg-[#22A06B]/10 px-3 py-2 text-xs text-[#9de2c5]">
+            <p className="font-semibold">Controleer uw inbox</p>
+            <p className="mt-1">Als dit e-mailadres is goedgekeurd, ontvangt u binnen enkele minuten een inloglink.</p>
+          </div>
         ) : null}
 
-        <form action={loginAction} className="mt-5 space-y-3">
+        <form action={requestLoginLinkAction} className="mt-5 space-y-3">
           <input
-            type="text"
-            name="driverId"
+            type="email"
+            name="email"
             required
-            className="h-11 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8] outline-none focus:border-[#D6B58A]"
-            placeholder="Driver ID"
+            className="h-11 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] outline-none focus:border-[#D6B58A]"
+            placeholder="naam@voorbeeld.nl"
           />
-          <input
-            type="password"
-            name="accessCode"
-            className="h-11 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8] outline-none focus:border-[#D6B58A]"
-            placeholder="Toegangscode (optioneel)"
+          <PendingSubmitButton
+            idleLabel="Inloglink versturen"
+            pendingLabel="Versturen..."
+            className="rounded-lg border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815]"
           />
-          <button className="rounded-lg border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815]">
-            Inloggen
-          </button>
         </form>
-
-        <p className="mt-4 text-xs text-[#7F776E]">
-          TODO: vervang deze interne v1 login met Supabase Auth magic-link login voor bredere uitrol.
-        </p>
       </div>
     </section>
   )

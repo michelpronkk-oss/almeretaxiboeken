@@ -7,8 +7,9 @@ export default function ChauffeurLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const isLogin = pathname === "/chauffeur/login"
   const isOnboarding = pathname === "/chauffeur/onboarding"
+  const isAccess = pathname === "/chauffeur/access"
 
-  if (isLogin || isOnboarding) {
+  if (isLogin || isOnboarding || isAccess) {
     return <div className="min-h-screen bg-[#070707] text-[#F5F1E8]">{children}</div>
   }
 

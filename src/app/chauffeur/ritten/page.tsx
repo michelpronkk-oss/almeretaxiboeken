@@ -1,5 +1,5 @@
-﻿import { redirect } from "next/navigation"
-import { getDriverSessionId } from "@/lib/driver-auth"
+import { redirect } from "next/navigation"
+import { getAuthenticatedDriverId } from "@/lib/driver-auth"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 async function updateRideStatusAction(formData: FormData) {
@@ -8,7 +8,7 @@ async function updateRideStatusAction(formData: FormData) {
   const bookingId = String(formData.get("bookingId") || "")
   const nextStatus = String(formData.get("nextStatus") || "")
 
-  const driverId = await getDriverSessionId()
+  const driverId = await getAuthenticatedDriverId()
   if (!driverId) {
     redirect("/chauffeur/login")
   }
@@ -43,7 +43,7 @@ async function updateRideStatusAction(formData: FormData) {
 }
 
 export default async function ChauffeurRittenPage() {
-  const driverId = await getDriverSessionId()
+  const driverId = await getAuthenticatedDriverId()
   if (!driverId) {
     redirect("/chauffeur/login")
   }
@@ -107,10 +107,6 @@ export default async function ChauffeurRittenPage() {
 
         {!rides?.length ? <p className="text-sm text-[#7F776E]">Geen toegewezen ritten gevonden.</p> : null}
       </div>
-
-      <p className="mt-4 text-xs text-[#7F776E]">
-        TODO: vervang deze interne v1 cookie-login met Supabase Auth voor productiebrede uitrol.
-      </p>
     </section>
   )
 }
