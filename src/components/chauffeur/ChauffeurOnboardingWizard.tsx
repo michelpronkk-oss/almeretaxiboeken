@@ -204,10 +204,10 @@ export default function ChauffeurOnboardingWizard({ token, email, error }: Chauf
         body: form,
       })
 
-      const json = (await res.json()) as { success?: boolean; error?: string }
+      const json = (await res.json()) as { success?: boolean; error?: string; message?: string; step?: string; details?: string }
 
       if (!res.ok || !json.success) {
-        setLocalError(json.error || "Opslaan mislukt. Probeer opnieuw.")
+        setLocalError(json.message || json.error || "Opslaan mislukt. Probeer opnieuw.")
         setIsSubmitting(false)
         return
       }

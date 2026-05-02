@@ -16,8 +16,11 @@ const allowedMimeTypes = new Set([
 ])
 
 function safeName(name: string) {
-  const ext = name.includes(".") ? name.split(".").pop() : "bin"
-  return `${crypto.randomUUID()}.${String(ext || "bin").toLowerCase()}`
+  const baseName = name.split(".")[0] || "foto"
+  const cleanedBase = baseName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "foto"
+  const extRaw = name.includes(".") ? name.split(".").pop() : "jpg"
+  const ext = String(extRaw || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 6) || "jpg"
+  return `${cleanedBase}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}.${ext}`
 }
 
 function validateFile(file: File | null, required: boolean, label: string) {
@@ -30,18 +33,36 @@ function validateFile(file: File | null, required: boolean, label: string) {
   return null
 }
 
+function fail(step: string, message: string, status = 400, details?: string) {
+  if (status >= 500) {
+    console.error("[chauffeur-onboarding-submit]", { step, errorMessage: message, details: details || "" })
+  }
+  return NextResponse.json({ success: false, step, message, details: details || undefined }, { status })
+}
+
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
+    let formData: FormData
+    try {
+      formData = await request.formData()
+    } catch (error) {
+      return fail("parse_form_data", "Aanvraag kon niet worden verwerkt.", 400, error instanceof Error ? error.message : "Invalid form data")
+    }
 
     const token = String(formData.get("token") || "")
     if (!token) {
-      return NextResponse.json({ success: false, error: "Uitnodiging verlopen of ongeldig" }, { status: 400 })
+      return fail("token_validation", "Uitnodiging verlopen of ongeldig")
     }
 
-    const invite = await getValidDriverInviteByToken(token)
+    let invite: Awaited<ReturnType<typeof getValidDriverInviteByToken>>
+    try {
+      invite = await getValidDriverInviteByToken(token)
+    } catch (error) {
+      return fail("driver_invite_lookup", "Uitnodiging kon niet worden gecontroleerd.", 500, error instanceof Error ? error.message : "Invite lookup failed")
+    }
+
     if (!invite) {
-      return NextResponse.json({ success: false, error: "Uitnodiging verlopen of ongeldig" }, { status: 400 })
+      return fail("driver_invite_lookup", "Uitnodiging verlopen of ongeldig")
     }
 
     const firstName = String(formData.get("first_name") || "").trim()
@@ -52,7 +73,7 @@ export async function POST(request: Request) {
     const licensePlate = String(formData.get("license_plate") || "").trim()
 
     if (!firstName || !lastName || !phone || !address || !vehicleType || !licensePlate) {
-      return NextResponse.json({ success: false, error: "Vul alle verplichte velden in." }, { status: 400 })
+      return fail("required_fields", "Vul alle verplichte velden in.")
     }
 
     const driverLicense = formData.get("driver_license") as File | null
@@ -66,10 +87,29 @@ export async function POST(request: Request) {
     ].filter(Boolean)
 
     if (fileErrors.length) {
-      return NextResponse.json({ success: false, error: fileErrors[0] }, { status: 400 })
+      return fail("file_validation", String(fileErrors[0] || "Ongeldige bestanden."))
     }
 
-    const supabase = getSupabaseServiceClient()
+    let supabase: ReturnType<typeof getSupabaseServiceClient>
+    try {
+      supabase = getSupabaseServiceClient()
+    } catch (error) {
+      return fail("supabase_client", "Serverconfiguratie onvolledig.", 500, error instanceof Error ? error.message : "Supabase client init failed")
+    }
+
+    const { data: driver, error: driverLookupError } = await supabase
+      .from("drivers")
+      .select("id")
+      .eq("id", invite.driverId)
+      .maybeSingle()
+
+    if (driverLookupError) {
+      return fail("driver_lookup", "Chauffeurgegevens konden niet worden geladen.", 500, driverLookupError.message)
+    }
+
+    if (!driver) {
+      return fail("driver_lookup", "Chauffeur niet gevonden.")
+    }
 
     const uploadFile = async (file: File | null, folder: string) => {
       if (!file || file.size === 0) return null
@@ -83,19 +123,31 @@ export async function POST(request: Request) {
       })
 
       if (error) {
-        throw new Error(`Upload mislukt: ${folder}`)
+        const bucketMissing = /bucket|not found|does not exist|not_exist/i.test(error.message || "")
+        const message = bucketMissing
+          ? "Storage bucket 'driver-documents' ontbreekt of is niet toegankelijk."
+          : `Upload mislukt voor ${folder}.`
+        throw new Error(`${message} (${error.message})`)
       }
 
       return path
     }
 
-    const [driverLicensePath, taxiPassPath, identityPath] = await Promise.all([
-      uploadFile(driverLicense, "driver_license"),
-      uploadFile(taxiPass, "taxi_pass"),
-      uploadFile(identityDocument, "identity_document"),
-    ])
+    let driverLicensePath: string | null
+    let taxiPassPath: string | null
+    let identityPath: string | null
 
-    await supabase
+    try {
+      [driverLicensePath, taxiPassPath, identityPath] = await Promise.all([
+        uploadFile(driverLicense, "driver_license"),
+        uploadFile(taxiPass, "taxi_pass"),
+        uploadFile(identityDocument, "identity_document"),
+      ])
+    } catch (error) {
+      return fail("storage_upload", "Document upload mislukt.", 500, error instanceof Error ? error.message : "Unknown upload error")
+    }
+
+    const { error: driverUpdateError } = await supabase
       .from("drivers")
       .update({
         first_name: firstName,
@@ -116,15 +168,23 @@ export async function POST(request: Request) {
       })
       .eq("id", invite.driverId)
 
-    await supabase
+    if (driverUpdateError) {
+      return fail("driver_update", "Chauffeurprofiel kon niet worden opgeslagen.", 500, driverUpdateError.message)
+    }
+
+    const { error: inviteUpdateError } = await supabase
       .from("driver_invites")
       .update({ status: "accepted", accepted_at: new Date().toISOString() })
       .eq("id", invite.id)
 
+    if (inviteUpdateError) {
+      return fail("driver_invite_update", "Uitnodigingsstatus kon niet worden bijgewerkt.", 500, inviteUpdateError.message)
+    }
+
     revalidatePath("/admin/chauffeurs")
 
     return NextResponse.json({ success: true })
-  } catch {
-    return NextResponse.json({ success: false, error: "Opslaan mislukt. Probeer opnieuw." }, { status: 500 })
+  } catch (error) {
+    return fail("unexpected", "Opslaan mislukt. Probeer opnieuw.", 500, error instanceof Error ? error.message : "Unknown error")
   }
 }
