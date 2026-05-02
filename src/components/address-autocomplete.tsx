@@ -33,7 +33,14 @@ export default function AddressAutocomplete({
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
+  const onChangeRef = useRef(onChange)
+  const onPlaceSelectRef = useRef(onPlaceSelect)
   const [autocompleteUnavailable, setAutocompleteUnavailable] = useState(false)
+
+  useEffect(() => {
+    onChangeRef.current = onChange
+    onPlaceSelectRef.current = onPlaceSelect
+  }, [onChange, onPlaceSelect])
 
   const initAutocomplete = useCallback(() => {
     if (autocompleteRef.current) return
@@ -51,8 +58,8 @@ export default function AddressAutocomplete({
     ac.addListener("place_changed", () => {
       const place = ac.getPlace()
       const selectedAddress = (place.formatted_address || place.name || inputRef.current?.value || "").trim()
-      onChange(selectedAddress)
-      onPlaceSelect?.({
+      onChangeRef.current(selectedAddress)
+      onPlaceSelectRef.current?.({
         address: selectedAddress,
         placeId: place.place_id || undefined,
       })
@@ -60,7 +67,7 @@ export default function AddressAutocomplete({
 
     autocompleteRef.current = ac
     setAutocompleteUnavailable(false)
-  }, [onChange, onPlaceSelect])
+  }, [])
 
   useEffect(() => {
     let retries = 0

@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState } from "react"
+import { memo, useCallback, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { formatCurrencyEUR } from "@/lib/format"
@@ -63,7 +63,7 @@ const dateTimeInput =
 
 const passengerOptions = [1, 2, 3, 4, 5, 6, 7, 8]
 
-export function BookingWidget() {
+export const BookingWidget = memo(function BookingWidget() {
   const [step, setStep] = useState<"form" | "price">("form")
   const [passengers, setPassengers] = useState(1)
   const [origin, setOrigin] = useState("")
@@ -80,7 +80,18 @@ export function BookingWidget() {
   const [error, setError] = useState("")
   const [tooSoonMessage, setTooSoonMessage] = useState("")
 
-  const vehicleType: "taxi" | "taxibus" = passengers >= 5 ? "taxibus" : "taxi"
+  const vehicleType: "taxi" | "taxibus" = useMemo(
+    () => (passengers >= 5 ? "taxibus" : "taxi"),
+    [passengers]
+  )
+
+  const handleOriginPlaceSelect = useCallback((place: { placeId?: string }) => {
+    setOriginPlaceId(place.placeId)
+  }, [])
+
+  const handleDestinationPlaceSelect = useCallback((place: { placeId?: string }) => {
+    setDestinationPlaceId(place.placeId)
+  }, [])
 
   async function handleCalculatePrice() {
     const originVal = origin.trim()
@@ -255,7 +266,7 @@ export function BookingWidget() {
           <AddressAutocomplete
             value={origin}
             onChange={setOrigin}
-            onPlaceSelect={(place) => setOriginPlaceId(place.placeId)}
+            onPlaceSelect={handleOriginPlaceSelect}
             placeholder="Uw vertrekpunt"
             inputClassName={cn(inputBase, "pl-10 pr-4")}
             wrapperClassName="w-full min-w-0"
@@ -267,7 +278,7 @@ export function BookingWidget() {
           <AddressAutocomplete
             value={destination}
             onChange={setDestination}
-            onPlaceSelect={(place) => setDestinationPlaceId(place.placeId)}
+            onPlaceSelect={handleDestinationPlaceSelect}
             placeholder="Uw bestemming"
             inputClassName={cn(inputBase, "pl-10 pr-4")}
             wrapperClassName="w-full min-w-0"
@@ -342,4 +353,4 @@ export function BookingWidget() {
       </p>
     </div>
   )
-}
+})
