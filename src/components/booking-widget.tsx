@@ -53,7 +53,7 @@ function makeWhatsappLink(params: {
 }
 
 const inputBase =
-  "w-full min-w-0 rounded-lg border border-white/[0.09] bg-white/[0.04] h-11 text-[16px] sm:text-sm text-white placeholder:text-white/30 outline-none focus:border-[#D4B896]/40 focus:bg-white/[0.07] transition-colors"
+  "box-border w-full min-w-0 max-w-full rounded-lg border border-white/[0.09] bg-white/[0.04] h-11 text-[16px] sm:text-sm text-white placeholder:text-white/30 outline-none focus:border-[#D4B896]/40 focus:bg-white/[0.07] transition-colors"
 
 export function BookingWidget() {
   const [step, setStep] = useState<"form" | "price">("form")
@@ -238,10 +238,10 @@ export function BookingWidget() {
   }
 
   return (
-    <div className="atb-booking-glow w-full max-w-[calc(100vw-32px)] rounded-2xl border border-white/[0.09] bg-[#111111] p-4 shadow-2xl sm:max-w-none sm:p-6">
+    <div className="atb-booking-glow box-border w-full min-w-0 max-w-full rounded-2xl border border-white/[0.09] bg-[#111111] p-4 shadow-2xl sm:p-6">
       <p className="mb-4 text-sm font-semibold text-white">Rit reserveren</p>
 
-      <div className="space-y-2.5">
+      <div className="w-full min-w-0 max-w-full space-y-2.5">
         <div className="relative min-w-0">
           <MapPin className="pointer-events-none absolute left-3.5 top-[21px] size-4 text-white/25" />
           <AddressAutocomplete
@@ -266,8 +266,8 @@ export function BookingWidget() {
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-2">
-          <div className="relative min-w-0">
+        <div className="grid w-full min-w-0 grid-cols-1 gap-2.5 md:grid-cols-2">
+          <div className="relative w-full min-w-0 max-w-full">
             <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-white/25" />
             <input
               aria-label="Datum"
@@ -278,7 +278,7 @@ export function BookingWidget() {
               className={cn(inputBase, "pl-10 pr-2 text-white/70", "[&::-webkit-calendar-picker-indicator]:opacity-30 [&::-webkit-calendar-picker-indicator]:invert")}
             />
           </div>
-          <div className="relative min-w-0">
+          <div className="relative w-full min-w-0 max-w-full">
             <Clock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-white/25" />
             <input
               aria-label="Tijd"
@@ -299,7 +299,7 @@ export function BookingWidget() {
             aria-label="Aantal passagiers"
             value={passengers}
             onChange={(e) => setPassengers(Number(e.target.value))}
-            className="h-11 w-full min-w-0 rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-[16px] text-white outline-none focus:border-[#D4B896]/40 sm:text-sm"
+            className="box-border h-11 w-full min-w-0 max-w-full rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-[16px] text-white outline-none focus:border-[#D4B896]/40 sm:text-sm"
           >
             {[1, 2, 3, 4, 5, 6, 7, 8].map((p) => (
               <option key={p} value={p} className="bg-[#111111]">
