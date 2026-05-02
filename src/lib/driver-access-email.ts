@@ -7,7 +7,11 @@ function sender() {
 }
 
 function siteUrl() {
-  return (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "")
+  const configured = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "")
+  if (process.env.NODE_ENV === "production" && /localhost/i.test(configured)) {
+    return "https://almeretaxiboeken.nl"
+  }
+  return configured
 }
 
 export async function sendDriverApprovedEmail(to: string, accessToken: string) {
@@ -26,11 +30,12 @@ export async function sendDriverApprovedEmail(to: string, accessToken: string) {
 export async function sendDriverLoginLinkEmail(to: string, accessToken: string) {
   const accessUrl = `${siteUrl()}/chauffeur/access?token=${encodeURIComponent(accessToken)}`
   const mail = chauffeurLoginLinkEmail(accessUrl)
+  const subject = "Uw inloglink voor AlmereTaxiBoeken"
 
   return sendEmail({
     from: sender(),
     to,
-    subject: mail.subject,
+    subject,
     html: mail.html,
     text: mail.text,
   })

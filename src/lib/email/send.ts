@@ -15,17 +15,40 @@ export async function sendEmail(payload: SendEmailPayload) {
   const from = payload.from || fallbackFrom
 
   if (!apiKey || !from) {
-    return { sent: false as const, reason: "missing_config" as const }
+    return { sent: false as const, reason: "missing_config" as const, id: "" }
   }
 
-  const resend = new Resend(apiKey)
-  await resend.emails.send({
-    from,
-    to: payload.to,
-    subject: payload.subject,
-    html: payload.html,
-    text: payload.text,
-  })
+  try {
+    const resend = new Resend(apiKey)
+    const result = await resend.emails.send({
+      from,
+      to: payload.to,
+      subject: payload.subject,
+      html: payload.html,
+      text: payload.text,
+    })
 
-  return { sent: true as const }
+    const resultId =
+      typeof result === "object" && result && "data" in result && result.data && typeof result.data === "object" && "id" in result.data
+        ? String(result.data.id || "")
+        : ""
+
+    const resultError =
+      typeof result === "object" && result && "error" in result && result.error
+        ? String((result.error as { message?: string }).message || "Resend returned error")
+        : ""
+
+    if (resultError) {
+      return { sent: false as const, reason: "provider_error" as const, error: resultError, id: resultId }
+    }
+
+    return { sent: true as const, id: resultId }
+  } catch (error) {
+    return {
+      sent: false as const,
+      reason: "send_failed" as const,
+      error: error instanceof Error ? error.message : "Unknown send error",
+      id: "",
+    }
+  }
 }
