@@ -186,7 +186,7 @@ export default function Home() {
           {/* Top-fade overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-[#080807]/35 via-transparent to-[#080807]/22" />
           {/* Decorative route SVG */}
-          <div className="absolute bottom-0 left-0 right-0 h-44 opacity-[0.13]">
+          <div className="absolute bottom-0 left-0 right-0 hidden h-44 opacity-[0.13] md:block">
             <svg
               viewBox="0 0 800 120"
               fill="none"

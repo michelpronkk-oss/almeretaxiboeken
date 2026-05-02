@@ -190,6 +190,23 @@
   animation: atb-draw-route 7s linear infinite;
 }
 
+.atb-date-time-input {
+  box-sizing: border-box;
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.atb-date-time-input::-webkit-date-and-time-value {
+  min-inline-size: 0;
+  text-align: left;
+}
+
+.atb-date-time-input::-webkit-calendar-picker-indicator {
+  margin-inline-start: 0;
+}
+
 @keyframes atb-draw-route {
   0%   { stroke-dashoffset: 900; opacity: 0;   }
   8%   { opacity: 1; }

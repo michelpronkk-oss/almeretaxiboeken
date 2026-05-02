@@ -266,8 +266,9 @@ export function BookingWidget() {
           />
         </div>
 
-        <div className="grid w-full min-w-0 grid-cols-1 gap-2.5 md:grid-cols-2">
-          <div className="relative w-full min-w-0 max-w-full">
+        {/* Mobile layout: date/time stack to prevent iOS overflow. */}
+        <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-2.5 md:grid-cols-2">
+          <div className="relative box-border w-full min-w-0 max-w-full overflow-hidden">
             <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-white/25" />
             <input
               aria-label="Datum"
@@ -275,17 +276,25 @@ export function BookingWidget() {
               value={date}
               onChange={(e) => setDate(e.target.value)}
               min={new Date().toISOString().split("T")[0]}
-              className={cn(inputBase, "pl-10 pr-2 text-white/70", "[&::-webkit-calendar-picker-indicator]:opacity-30 [&::-webkit-calendar-picker-indicator]:invert")}
+              className={cn(
+                inputBase,
+                "atb-date-time-input block overflow-hidden pl-10 pr-2 text-white/70",
+                "[&::-webkit-calendar-picker-indicator]:opacity-30 [&::-webkit-calendar-picker-indicator]:invert"
+              )}
             />
           </div>
-          <div className="relative w-full min-w-0 max-w-full">
+          <div className="relative box-border w-full min-w-0 max-w-full overflow-hidden">
             <Clock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-white/25" />
             <input
               aria-label="Tijd"
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className={cn(inputBase, "pl-10 pr-2 text-white/70", "[&::-webkit-calendar-picker-indicator]:opacity-30 [&::-webkit-calendar-picker-indicator]:invert")}
+              className={cn(
+                inputBase,
+                "atb-date-time-input block overflow-hidden pl-10 pr-2 text-white/70",
+                "[&::-webkit-calendar-picker-indicator]:opacity-30 [&::-webkit-calendar-picker-indicator]:invert"
+              )}
             />
           </div>
         </div>
