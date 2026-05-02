@@ -1,0 +1,9 @@
+﻿{
+  "origin": {
+    "address": "Stationsplein, Almere"
+  },
+  "destination": {
+    "address": "Schiphol, Amsterdam"
+  },
+  "passengers": 2
+}
