@@ -20,7 +20,7 @@ export function SiteHeader() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-[#1F1C18] bg-[rgba(8,8,7,0.86)] backdrop-blur-md">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-[#1F1C18] bg-[rgba(8,8,7,0.92)] md:bg-[rgba(8,8,7,0.86)] md:backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Link href="/" className="text-[15px] font-semibold tracking-tight">
           <span className="text-[#F5F1E8]">AlmereTaxi</span>
@@ -61,8 +61,12 @@ export function SiteHeader() {
         </div>
       </div>
 
-      {mobileOpen ? (
-        <div className="border-t border-[#1F1C18] bg-[#080807] px-6 py-4 md:hidden">
+      <div
+        aria-hidden={!mobileOpen}
+        className={`absolute inset-x-0 top-16 border-t border-[#1F1C18] bg-[#080807] px-6 py-4 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none md:hidden ${
+          mobileOpen ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"
+        }`}
+      >
           <nav className="flex flex-col gap-3 text-sm">
             <Link href="/#contact" onClick={() => setMobileOpen(false)} className="text-[#F5F1E8]">
               Rit reserveren
@@ -95,7 +99,6 @@ export function SiteHeader() {
             </a>
           </nav>
         </div>
-      ) : null}
     </header>
   )
 }

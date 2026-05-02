@@ -55,6 +55,14 @@ function makeWhatsappLink(params: {
 const inputBase =
   "box-border w-full min-w-0 max-w-full rounded-lg border border-white/[0.09] bg-white/[0.04] h-11 text-[16px] sm:text-sm text-white placeholder:text-white/30 outline-none focus:border-[#D4B896]/40 focus:bg-white/[0.07] transition-colors"
 
+const dateTimeShell =
+  "relative flex h-11 w-full min-w-0 max-w-full items-center overflow-hidden rounded-lg border border-white/[0.09] bg-white/[0.04] transition-colors focus-within:border-[#D4B896]/40 focus-within:bg-white/[0.07]"
+
+const dateTimeInput =
+  "atb-date-time-input h-full border-0 bg-transparent pl-10 pr-2 text-[16px] text-white/70 outline-none sm:text-sm"
+
+const passengerOptions = [1, 2, 3, 4, 5, 6, 7, 8]
+
 export function BookingWidget() {
   const [step, setStep] = useState<"form" | "price">("form")
   const [passengers, setPassengers] = useState(1)
@@ -268,7 +276,7 @@ export function BookingWidget() {
 
         {/* Mobile layout: date/time stack to prevent iOS overflow. */}
         <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-2.5 md:grid-cols-2">
-          <div className="relative box-border w-full min-w-0 max-w-full overflow-hidden">
+          <div className={dateTimeShell}>
             <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-white/25" />
             <input
               aria-label="Datum"
@@ -277,13 +285,12 @@ export function BookingWidget() {
               onChange={(e) => setDate(e.target.value)}
               min={new Date().toISOString().split("T")[0]}
               className={cn(
-                inputBase,
-                "atb-date-time-input block overflow-hidden pl-10 pr-2 text-white/70",
+                dateTimeInput,
                 "[&::-webkit-calendar-picker-indicator]:opacity-30 [&::-webkit-calendar-picker-indicator]:invert"
               )}
             />
           </div>
-          <div className="relative box-border w-full min-w-0 max-w-full overflow-hidden">
+          <div className={dateTimeShell}>
             <Clock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-white/25" />
             <input
               aria-label="Tijd"
@@ -291,8 +298,7 @@ export function BookingWidget() {
               value={time}
               onChange={(e) => setTime(e.target.value)}
               className={cn(
-                inputBase,
-                "atb-date-time-input block overflow-hidden pl-10 pr-2 text-white/70",
+                dateTimeInput,
                 "[&::-webkit-calendar-picker-indicator]:opacity-30 [&::-webkit-calendar-picker-indicator]:invert"
               )}
             />
@@ -310,7 +316,7 @@ export function BookingWidget() {
             onChange={(e) => setPassengers(Number(e.target.value))}
             className="box-border h-11 w-full min-w-0 max-w-full rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-[16px] text-white outline-none focus:border-[#D4B896]/40 sm:text-sm"
           >
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((p) => (
+            {passengerOptions.map((p) => (
               <option key={p} value={p} className="bg-[#111111]">
                 {p} {p === 1 ? "persoon" : "personen"}
               </option>
