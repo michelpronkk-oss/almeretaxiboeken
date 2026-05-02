@@ -196,3 +196,39 @@ export function driverAssignedRideEmail(data: {
     }),
   }
 }
+
+export function manualPaymentLinkEmail(data: {
+  reference: string
+  date: string
+  time: string
+  origin: string
+  destination: string
+  passengers: number
+  vehicleType?: string
+  price: number
+  paymentUrl: string
+}) {
+  return {
+    subject: "Betaallink voor uw rit met AlmereTaxiBoeken",
+    ...renderBaseEmail({
+      preheader: "Betaal veilig online om uw rit definitief te reserveren.",
+      label: "Boekingsbetaling",
+      title: "Uw rit reserveren",
+      intro: "Uw rit is aangemaakt door AlmereTaxiBoeken. Betaal veilig online om de reservering definitief te maken.",
+      details: [
+        { label: "Referentie", value: data.reference },
+        { label: "Datum", value: dateNl(data.date) },
+        { label: "Tijd", value: data.time },
+        { label: "Ophaaladres", value: data.origin },
+        { label: "Bestemming", value: data.destination },
+        { label: "Aantal personen", value: String(data.passengers) },
+        { label: "Voertuig", value: vehicleLabel(data.vehicleType) },
+        { label: "Ritprijs", value: euro(data.price) },
+      ],
+      ctaLabel: "Rit betalen",
+      ctaUrl: data.paymentUrl,
+      fallbackLinkUrl: data.paymentUrl,
+      note: "Na betaling is uw rit definitief gereserveerd.",
+    }),
+  }
+}
