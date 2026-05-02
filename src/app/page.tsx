@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { motion } from "framer-motion"
 import Link from "next/link"
@@ -37,7 +37,7 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.09 } },
 }
 
-// ── Data ────────────────────────────────────────────────────
+// â”€â”€ Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const services = [
   {
@@ -106,7 +106,7 @@ const pillars = [
   {
     icon: BadgeEuro,
     title: "Duidelijke ritprijs vooraf",
-    desc: "Geen taxameter, geen verrassingen. U weet exact wat u betaalt vóór de rit.",
+    desc: "Geen taxameter, geen verrassingen. U weet exact wat u betaalt vÃ³Ã³r de rit.",
   },
   {
     icon: ShieldCheck,
@@ -158,20 +158,21 @@ const trustSignals = [
   },
 ]
 
-// ── Page ────────────────────────────────────────────────────
+// â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function Home() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#080807] text-[#F5F1E8]">
       <SiteHeader />
+      <main className="pt-16">
 
-      {/* ── Hero ─────────────────────────────────────────── */}
-      <section className="relative pb-12 pt-8 sm:pb-20 sm:pt-12 lg:pb-28 lg:pt-16">
+      {/* â”€â”€ Hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <section className="relative pb-12 pt-4 sm:pb-20 sm:pt-8 lg:pb-28 lg:pt-12">
         {/* Background layers */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-          {/* Primary champagne glow — static */}
+          {/* Primary champagne glow â€” static */}
           <div className="absolute -top-40 left-[5%] h-[560px] w-[560px] rounded-full bg-[#D6B58A] opacity-[0.04] blur-[140px]" />
-          {/* Secondary glow — static */}
+          {/* Secondary glow â€” static */}
           <div className="absolute right-[5%] top-1/4 h-[380px] w-[380px] rounded-full bg-[#D6B58A] opacity-[0.022] blur-[120px]" />
           {/* Faint grid */}
           <div
@@ -221,7 +222,7 @@ export default function Home() {
               <circle cx="215" cy="40" r="3" fill="#D6B58A" opacity="0.35" />
               <circle cx="400" cy="46" r="3" fill="#D6B58A" opacity="0.35" />
               <circle cx="800" cy="18" r="5" fill="#D6B58A" opacity="0.5" />
-              {/* Moving dot — SVG animateMotion works cross-browser */}
+              {/* Moving dot â€” SVG animateMotion works cross-browser */}
               <circle r="4.5" fill="#D6B58A" className="atb-reduce-motion-hide">
                 <animateMotion dur="7s" repeatCount="indefinite" begin="0.5s">
                   <mpath href="#hero-route-path" />
@@ -324,9 +325,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Vehicle photo slots ───────────────────────────── */}
+      {/* â”€â”€ Vehicle photo slots â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {/*
-        PHOTO READY — swap in real images by:
+        PHOTO READY â€” swap in real images by:
         1. Adding Next.js <Image src="..." alt="..." fill className="object-cover" />
            inside the slot div (before the overlay div)
         2. Removing the placeholder icon + label divs
@@ -335,16 +336,16 @@ export default function Home() {
       <div className="bg-[#080807] px-6 pb-10">
         <div className="mx-auto grid max-w-6xl gap-4 lg:grid-cols-[1.15fr_1fr]">
 
-          {/* Slot A — exterior / vehicle shot */}
+          {/* Slot A â€” exterior / vehicle shot */}
           <div className="group relative aspect-[16/9] overflow-hidden rounded-2xl border border-[#292520] bg-[#151311] lg:aspect-[3/2]">
-            {/* ↓ Remove this block when adding real photo */}
+            {/* â†“ Remove this block when adding real photo */}
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
               <Car className="size-9 text-[#292520]" />
               <span className="rounded-full border border-[#292520] px-3 py-1 text-[10px] font-medium uppercase tracking-widest text-[#292520]">
                 Voertuig exterieur
               </span>
             </div>
-            {/* ↑ Remove this block when adding real photo */}
+            {/* â†‘ Remove this block when adding real photo */}
 
             {/* Keep this overlay when using a real photo */}
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-5 py-4">
@@ -353,16 +354,16 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Slot B — interior shot */}
+          {/* Slot B â€” interior shot */}
           <div className="group relative aspect-[4/3] overflow-hidden rounded-2xl border border-[#292520] bg-[#151311] lg:aspect-auto">
-            {/* ↓ Remove this block when adding real photo */}
+            {/* â†“ Remove this block when adding real photo */}
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
               <Users className="size-9 text-[#292520]" />
               <span className="rounded-full border border-[#292520] px-3 py-1 text-[10px] font-medium uppercase tracking-widest text-[#292520]">
                 Interieur
               </span>
             </div>
-            {/* ↑ Remove this block when adding real photo */}
+            {/* â†‘ Remove this block when adding real photo */}
 
             {/* Keep this overlay when using a real photo */}
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-5 py-4">
@@ -376,7 +377,7 @@ export default function Home() {
 
       <TrustBar />
 
-      {/* ── How it works ─────────────────────────────────── */}
+      {/* â”€â”€ How it works â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="border-y border-[#1F1C18] bg-[#0D0C0B] py-20">
         <div className="mx-auto max-w-6xl px-6">
           <motion.div
@@ -416,7 +417,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Tarieven preview ─────────────────────────────── */}
+      {/* â”€â”€ Tarieven preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section id="tarieven" className="py-20">
         <div className="mx-auto max-w-6xl px-6">
           <p className="mb-2.5 text-[11px] font-medium uppercase tracking-[0.14em] text-[#D6B58A]">
@@ -428,19 +429,19 @@ export default function Home() {
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-[#292520] bg-[#151311] p-5">
               <p className="text-sm font-semibold text-[#F5F1E8]">Personenauto (1-4)</p>
-              <p className="mt-2 text-sm text-[#B7AEA2]">Start €4,31</p>
-              <p className="text-sm text-[#B7AEA2]">€3,17 per km</p>
-              <p className="text-sm text-[#B7AEA2]">€0,52 per minuut</p>
+              <p className="mt-2 text-sm text-[#B7AEA2]">Start â‚¬4,31</p>
+              <p className="text-sm text-[#B7AEA2]">â‚¬3,17 per km</p>
+              <p className="text-sm text-[#B7AEA2]">â‚¬0,52 per minuut</p>
             </div>
             <div className="rounded-2xl border border-[#292520] bg-[#151311] p-5">
               <p className="text-sm font-semibold text-[#F5F1E8]">Taxibus (5-8)</p>
-              <p className="mt-2 text-sm text-[#B7AEA2]">Start €8,77</p>
-              <p className="text-sm text-[#B7AEA2]">€4,00 per km</p>
-              <p className="text-sm text-[#B7AEA2]">€0,59 per minuut</p>
+              <p className="mt-2 text-sm text-[#B7AEA2]">Start â‚¬8,77</p>
+              <p className="text-sm text-[#B7AEA2]">â‚¬4,00 per km</p>
+              <p className="text-sm text-[#B7AEA2]">â‚¬0,59 per minuut</p>
             </div>
             <div className="rounded-2xl border border-[#292520] bg-[#151311] p-5">
               <p className="text-sm font-semibold text-[#F5F1E8]">Wachttarief</p>
-              <p className="mt-2 text-sm text-[#B7AEA2]">€59,41 per uur (indien toegepast)</p>
+              <p className="mt-2 text-sm text-[#B7AEA2]">â‚¬59,41 per uur (indien toegepast)</p>
             </div>
           </div>
           <Link
@@ -453,7 +454,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Services ─────────────────────────────────────── */}
+      {/* â”€â”€ Services â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section id="diensten" className="border-y border-[#1F1C18] bg-[#0D0C0B] py-20">
         <div className="mx-auto max-w-6xl px-6">
           <motion.div
@@ -504,7 +505,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Popular routes ───────────────────────────────── */}
+      {/* â”€â”€ Popular routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="py-20">
         <div className="mx-auto max-w-6xl px-6">
           <motion.div
@@ -539,7 +540,7 @@ export default function Home() {
                       </div>
                     </div>
                     <span className="text-xs font-medium text-[#D6B58A] opacity-0 transition-opacity group-hover:opacity-100">
-                      Bereken →
+                      Bereken â†’
                     </span>
                   </Link>
                 </motion.div>
@@ -549,7 +550,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Why AlmereTaxiBoeken ─────────────────────────── */}
+      {/* â”€â”€ Why AlmereTaxiBoeken â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section id="waarom-ons" className="border-y border-[#1F1C18] bg-[#0D0C0B] py-20">
         <div className="mx-auto max-w-6xl px-6">
           <motion.div
@@ -586,7 +587,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Trust signals ────────────────────────────────── */}
+      {/* â”€â”€ Trust signals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="py-16">
         <div className="mx-auto max-w-6xl px-6">
           <motion.div
@@ -625,7 +626,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── FAQ ──────────────────────────────────────────── */}
+      {/* â”€â”€ FAQ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section id="faq" className="border-y border-[#1F1C18] bg-[#0D0C0B] py-20">
         <div className="mx-auto max-w-6xl px-6">
           <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-[#D6B58A]">
@@ -672,7 +673,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── CTA ──────────────────────────────────────────── */}
+      {/* â”€â”€ CTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section id="contact" className="py-24">
         <div className="mx-auto max-w-6xl px-6">
           <motion.div
@@ -719,6 +720,8 @@ export default function Home() {
       </section>
 
       <SiteFooter />
+      </main>
     </div>
   )
 }
+
