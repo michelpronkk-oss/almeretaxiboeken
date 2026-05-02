@@ -1,4 +1,4 @@
-﻿import { getSupabaseServiceClient } from "@/lib/supabase/server"
+import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 interface BookingBody {
   origin: string
@@ -36,6 +36,8 @@ export async function POST(request: Request) {
     email,
     price,
   } = body
+  const passengers = typeof body.passengers === "number" ? Math.max(1, Math.min(8, body.passengers)) : vehicleType === "taxibus" ? 5 : 1
+  const normalizedVehicleType: "taxi" | "taxibus" = passengers >= 5 ? "taxibus" : "taxi"
 
   if (!origin || !destination || !date || !time || !name || !phone || !email || !price) {
     return Response.json({ error: "Verplichte velden ontbreken." }, { status: 400 })
@@ -60,13 +62,8 @@ export async function POST(request: Request) {
       destination_address: destination,
       pickup_date: date,
       pickup_time: time,
-      passengers:
-        typeof body.passengers === "number"
-          ? body.passengers
-          : vehicleType === "taxibus"
-            ? 5
-            : 1,
-      vehicle_type: vehicleType,
+      passengers,
+      vehicle_type: normalizedVehicleType,
       distance_km: Number(body.distanceKm ?? 0),
       duration_minutes: Number(body.durationMin ?? 0),
       estimated_fare: Number(price),
@@ -117,7 +114,7 @@ export async function POST(request: Request) {
         destination,
         date,
         time,
-        vehicleType,
+        vehicleType: normalizedVehicleType,
         name,
         phone,
         email,

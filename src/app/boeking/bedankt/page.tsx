@@ -1,4 +1,5 @@
-﻿import Link from "next/link"
+import Link from "next/link"
+import { formatCurrencyEUR } from "@/lib/format"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 import { mapMollieToBookingPaymentStatus, mapMollieToPublicStatus } from "@/lib/mollie-status"
 
@@ -70,20 +71,21 @@ export default async function BookingThanksPage({ searchParams }: { searchParams
         reference: string
         payment_status: string
         mollie_payment_id: string | null
+        estimated_fare: number | null
       }
     | null = null
 
   if (bookingId) {
     const { data } = await supabase
       .from("bookings")
-      .select("id, reference, payment_status, mollie_payment_id")
+      .select("id, reference, payment_status, mollie_payment_id, estimated_fare")
       .eq("id", bookingId)
       .maybeSingle()
     booking = data
   } else if (reference) {
     const { data } = await supabase
       .from("bookings")
-      .select("id, reference, payment_status, mollie_payment_id")
+      .select("id, reference, payment_status, mollie_payment_id, estimated_fare")
       .eq("reference", reference)
       .maybeSingle()
     booking = data
@@ -145,6 +147,7 @@ export default async function BookingThanksPage({ searchParams }: { searchParams
         <div className="mt-4 space-y-2 text-sm text-white/70">
           <p>{copy.body}</p>
           {copy.sub ? <p>{copy.sub}</p> : null}
+          {typeof booking?.estimated_fare === "number" ? <p>Ritprijs: {formatCurrencyEUR(booking.estimated_fare)}</p> : null}
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">

@@ -161,8 +161,12 @@ export function driverAssignedRideEmail(data: {
   destination: string
   date: string
   time: string
+  customerName?: string
+  customerPhone?: string
   vehicleType?: string
   passengers?: number
+  price?: number
+  notes?: string
 }) {
   const portalUrl = `${(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "")}/chauffeur/ritten`
 
@@ -175,12 +179,16 @@ export function driverAssignedRideEmail(data: {
       intro: "Er is een rit aan u toegewezen. Bekijk de ritdetails in het chauffeurportaal.",
       details: [
         { label: "Referentie", value: data.reference },
-        { label: "Vertrekpunt", value: data.origin },
-        { label: "Bestemming", value: data.destination },
         { label: "Datum", value: dateNl(data.date) },
         { label: "Tijd", value: data.time },
+        { label: "Vertrekpunt", value: data.origin },
+        { label: "Bestemming", value: data.destination },
+        { label: "Klantnaam", value: data.customerName || "-" },
+        { label: "Telefoonnummer klant", value: data.customerPhone || "-" },
         { label: "Voertuigtype", value: vehicleLabel(data.vehicleType) },
         { label: "Passagiers", value: String(data.passengers ?? "-") },
+        { label: "Ritprijs", value: typeof data.price === "number" ? euro(data.price) : "-" },
+        ...(data.notes ? [{ label: "Opmerkingen", value: data.notes }] : []),
       ],
       ctaLabel: "Rit bekijken",
       ctaUrl: portalUrl,

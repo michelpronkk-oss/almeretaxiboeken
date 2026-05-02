@@ -1,5 +1,7 @@
+import { formatCurrencyEUR } from "@/lib/format"
+
 export function euro(value: number) {
-  return `� ${Number(value || 0).toFixed(2).replace(".", ",")}`
+  return formatCurrencyEUR(value)
 }
 
 export function dateNl(dateStr: string) {

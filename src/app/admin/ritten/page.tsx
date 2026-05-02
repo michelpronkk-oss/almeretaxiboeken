@@ -1,11 +1,13 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import PendingSubmitButton from "@/components/internal/pending-submit-button"
 import { isAdminAuthenticated } from "@/lib/admin-auth"
 import { sendEmail } from "@/lib/email/send"
 import { driverAssignedRideEmail } from "@/lib/email/templates"
+import { formatCurrencyEUR, formatPassengerVehicle } from "@/lib/format"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
-type SearchParams = Promise<{ filter?: string }>
+type SearchParams = Promise<{ filter?: string; status?: string; error?: string; warning?: string }>
 
 async function assignDriverAction(formData: FormData) {
   "use server"
@@ -17,54 +19,95 @@ async function assignDriverAction(formData: FormData) {
   const bookingId = String(formData.get("bookingId") || "")
   const driverId = String(formData.get("driverId") || "")
 
-  if (!bookingId || !driverId) return
+  if (!bookingId || !driverId) {
+    redirect("/admin/ritten?error=Selecteer%20een%20chauffeur%20en%20rit")
+  }
 
   const supabase = getSupabaseServiceClient()
 
-  const { data: booking } = await supabase
+  const { data: booking, error: bookingError } = await supabase
     .from("bookings")
-    .select("reference, pickup_address, destination_address, pickup_date, pickup_time, vehicle_type, passengers")
+    .select("id, reference, pickup_address, destination_address, pickup_date, pickup_time, vehicle_type, passengers, estimated_fare, notes, customer_name, customer_phone")
     .eq("id", bookingId)
     .maybeSingle()
 
-  const { data: driver } = await supabase
+  if (bookingError || !booking) {
+    redirect("/admin/ritten?error=Rit%20niet%20gevonden")
+  }
+
+  const { data: driver, error: driverError } = await supabase
     .from("drivers")
-    .select("email")
+    .select("id, email")
     .eq("id", driverId)
     .maybeSingle()
 
-  await supabase
+  if (driverError || !driver) {
+    redirect("/admin/ritten?error=Chauffeur%20niet%20gevonden")
+  }
+
+  const { error: assignError } = await supabase
     .from("bookings")
     .update({ assigned_driver_id: driverId, booking_status: "assigned" })
     .eq("id", bookingId)
+
+  if (assignError) {
+    redirect("/admin/ritten?error=Chauffeur%20toewijzen%20mislukt")
+  }
 
   await supabase.from("booking_events").insert({
     booking_id: bookingId,
     event_type: "driver_assigned",
     actor_type: "admin",
     actor_id: null,
-    note: `Driver assigned: ${driverId}`,
+    note: "Driver assigned by admin",
   })
 
-  if (booking?.reference && driver?.email) {
+  let warning = ""
+
+  if (driver.email) {
     const mail = driverAssignedRideEmail({
       reference: booking.reference,
       origin: booking.pickup_address || "-",
       destination: booking.destination_address || "-",
       date: booking.pickup_date || "-",
       time: booking.pickup_time || "-",
+      customerName: booking.customer_name || "-",
+      customerPhone: booking.customer_phone || "-",
       vehicleType: booking.vehicle_type || "taxi",
       passengers: booking.passengers ?? undefined,
+      price: typeof booking.estimated_fare === "number" ? booking.estimated_fare : Number(booking.estimated_fare ?? 0),
+      notes: booking.notes || undefined,
     })
 
-    await sendEmail({
+    const sendResult = await sendEmail({
       to: driver.email,
       subject: mail.subject,
       html: mail.html,
       text: mail.text,
       from: process.env.DRIVER_INVITE_FROM_EMAIL || process.env.RESEND_FROM_EMAIL,
     })
+
+    if (sendResult.sent) {
+      await supabase.from("booking_events").insert({
+        booking_id: bookingId,
+        event_type: "driver_notified",
+        actor_type: "system",
+        note: "Driver assignment email sent",
+      })
+    } else {
+      await supabase.from("booking_events").insert({
+        booking_id: bookingId,
+        event_type: "driver_notification_failed",
+        actor_type: "system",
+        note: sendResult.error || sendResult.reason || "Driver assignment email failed",
+      })
+      console.error("[admin-assign-driver] email failed", sendResult.error || sendResult.reason || "unknown")
+      warning = "Chauffeur toegewezen, maar e-mailnotificatie is niet verzonden."
+    }
   }
+
+  const qs = warning ? `?status=${encodeURIComponent("Chauffeur toegewezen.")}&warning=${encodeURIComponent(warning)}` : "?status=Chauffeur%20toegewezen."
+  redirect(`/admin/ritten${qs}`)
 }
 
 export default async function AdminRittenPage({ searchParams }: { searchParams: SearchParams }) {
@@ -110,6 +153,10 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
         <p className="mt-2 text-sm text-[#B7AEA2]">Bekijk betaalde boekingen en wijs chauffeurs toe.</p>
       </div>
 
+      {params.status ? <p className="rounded-md border border-[#22A06B]/30 bg-[#22A06B]/10 px-3 py-2 text-xs text-[#9de2c5]">{params.status}</p> : null}
+      {params.warning ? <p className="rounded-md border border-[#D6B58A]/30 bg-[#D6B58A]/10 px-3 py-2 text-xs text-[#D6B58A]">{params.warning}</p> : null}
+      {params.error ? <p className="rounded-md border border-[#D94A4A]/30 bg-[#D94A4A]/10 px-3 py-2 text-xs text-[#ffb4b4]">{params.error}</p> : null}
+
       <div className="flex flex-wrap gap-2">
         {filters.map((f) => (
           <Link key={f.id} href={`/admin/ritten?filter=${f.id}`} className={`rounded-lg border px-3 py-1.5 text-xs ${filter === f.id ? "border-[#D6B58A] text-[#D6B58A]" : "border-[#292520] text-[#B7AEA2]"}`}>
@@ -125,7 +172,7 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
             <p className="text-sm text-[#B7AEA2]">{booking.pickup_date || "-"} {booking.pickup_time || ""}</p>
             <p className="mt-2 text-sm text-[#B7AEA2]">{booking.pickup_address} {"->"} {booking.destination_address}</p>
             <p className="mt-1 text-sm text-[#8F877D]">{booking.customer_name || "-"} | {booking.customer_phone || "-"}</p>
-            <p className="mt-1 text-sm text-[#8F877D]">�{Number(booking.estimated_fare ?? 0).toFixed(2)} | {booking.booking_status}</p>
+            <p className="mt-1 text-sm text-[#8F877D]">{formatCurrencyEUR(booking.estimated_fare)} | {booking.booking_status}</p>
 
             <form action={assignDriverAction} className="mt-3 space-y-2">
               <input type="hidden" name="bookingId" value={booking.id} />
@@ -135,7 +182,11 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
                   <option key={d.id} value={d.id}>{d.full_name}</option>
                 ))}
               </select>
-              <button className="w-full rounded-md border border-[#3A2D1F] px-3 py-1.5 text-xs font-semibold text-[#D6B58A] hover:bg-[#1B1815]">Chauffeur toewijzen</button>
+              <PendingSubmitButton
+                idleLabel="Toewijzen"
+                pendingLabel="Toewijzen..."
+                className="w-full rounded-md border border-[#3A2D1F] px-3 py-1.5 text-xs font-semibold text-[#D6B58A] hover:bg-[#1B1815]"
+              />
             </form>
           </article>
         ))}
@@ -161,7 +212,7 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
                 <td className="px-3 py-3 text-[#B7AEA2]">{booking.pickup_date || "-"} {booking.pickup_time || ""}</td>
                 <td className="px-3 py-3 text-[#B7AEA2]"><div>{booking.pickup_address}</div><div className="text-[#8F877D]">{booking.destination_address}</div></td>
                 <td className="px-3 py-3 text-[#B7AEA2]"><div>{booking.customer_name || "-"}</div><div className="text-[#8F877D]">{booking.customer_phone || "-"}</div></td>
-                <td className="px-3 py-3 text-[#B7AEA2]">{booking.passengers ?? "-"}p - {booking.vehicle_type || "-"}<br />�{Number(booking.estimated_fare ?? 0).toFixed(2)}</td>
+                <td className="px-3 py-3 text-[#B7AEA2]">{formatPassengerVehicle(booking.passengers, booking.vehicle_type)}<br />{formatCurrencyEUR(booking.estimated_fare)}</td>
                 <td className="px-3 py-3 text-[#B7AEA2]">{booking.payment_status}<br />{booking.booking_status}</td>
                 <td className="px-3 py-3">
                   <form action={assignDriverAction} className="space-y-2">
@@ -172,7 +223,11 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
                         <option key={d.id} value={d.id}>{d.full_name}</option>
                       ))}
                     </select>
-                    <button className="w-full rounded-md border border-[#3A2D1F] px-3 py-1.5 text-xs font-semibold text-[#D6B58A] hover:bg-[#1B1815]">Toewijzen</button>
+                    <PendingSubmitButton
+                      idleLabel="Toewijzen"
+                      pendingLabel="Toewijzen..."
+                      className="w-full rounded-md border border-[#3A2D1F] px-3 py-1.5 text-xs font-semibold text-[#D6B58A] hover:bg-[#1B1815]"
+                    />
                   </form>
                 </td>
               </tr>
