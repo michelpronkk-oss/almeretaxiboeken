@@ -53,10 +53,10 @@ function makeWhatsappLink(params: {
 }
 
 const inputBase =
-  "box-border w-full min-w-0 max-w-full rounded-lg border border-white/[0.09] bg-white/[0.04] h-11 text-[16px] sm:text-sm text-white placeholder:text-white/30 outline-none focus:border-[#D4B896]/40 focus:bg-white/[0.07] transition-colors"
+  "box-border w-full min-w-0 max-w-full rounded-lg border border-white/[0.09] bg-white/[0.04] h-10 sm:h-11 text-[16px] sm:text-sm text-white placeholder:text-white/30 outline-none focus:border-[#D4B896]/40 focus:bg-white/[0.07] transition-colors"
 
 const dateTimeShell =
-  "relative flex h-11 w-full min-w-0 max-w-full items-center overflow-hidden rounded-lg border border-white/[0.09] bg-white/[0.04] transition-colors focus-within:border-[#D4B896]/40 focus-within:bg-white/[0.07]"
+  "relative flex h-10 sm:h-11 w-full min-w-0 max-w-full items-center overflow-hidden rounded-lg border border-white/[0.09] bg-white/[0.04] transition-colors focus-within:border-[#D4B896]/40 focus-within:bg-white/[0.07]"
 
 const dateTimeInput =
   "atb-date-time-input h-full border-0 bg-transparent pl-10 pr-2 text-[16px] text-white/70 outline-none sm:text-sm"
@@ -257,10 +257,10 @@ export const BookingWidget = memo(function BookingWidget() {
   }
 
   return (
-    <div className="atb-booking-glow box-border w-full min-w-0 max-w-full rounded-2xl border border-white/[0.09] bg-[#111111] p-4 shadow-2xl sm:p-6">
-      <p className="mb-4 text-sm font-semibold text-white">Rit reserveren</p>
+    <div className="atb-booking-glow box-border w-full min-w-0 max-w-full rounded-2xl border border-white/[0.09] bg-[#111111] p-3.5 shadow-2xl sm:p-6">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/60 sm:mb-4 sm:text-sm sm:normal-case sm:tracking-normal sm:text-white">Rit reserveren</p>
 
-      <div className="w-full min-w-0 max-w-full space-y-2.5">
+      <div className="w-full min-w-0 max-w-full space-y-2 sm:space-y-2.5">
         <div className="relative min-w-0">
           <MapPin className="pointer-events-none absolute left-3.5 top-[21px] size-4 text-white/25" />
           <AddressAutocomplete
@@ -325,7 +325,7 @@ export const BookingWidget = memo(function BookingWidget() {
             aria-label="Aantal passagiers"
             value={passengers}
             onChange={(e) => setPassengers(Number(e.target.value))}
-            className="box-border h-11 w-full min-w-0 max-w-full rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-[16px] text-white outline-none focus:border-[#D4B896]/40 sm:text-sm"
+            className="box-border h-10 sm:h-11 w-full min-w-0 max-w-full rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-[16px] text-white outline-none focus:border-[#D4B896]/40 sm:text-sm"
           >
             {passengerOptions.map((p) => (
               <option key={p} value={p} className="bg-[#111111]">
@@ -342,7 +342,7 @@ export const BookingWidget = memo(function BookingWidget() {
       <Button
         onClick={handleCalculatePrice}
         disabled={loading}
-        className="atb-calc-cta mt-4 h-12 w-full rounded-xl border border-[#D4B896]/40 bg-[#D4B896]/[0.08] text-[15px] font-semibold text-[#D4B896] hover:bg-[#D4B896]/[0.16] disabled:opacity-50"
+        className="atb-calc-cta mt-3 h-11 sm:mt-4 sm:h-12 w-full rounded-xl border border-[#D4B896]/40 bg-[#D4B896]/[0.08] text-sm sm:text-[15px] font-semibold text-[#D4B896] hover:bg-[#D4B896]/[0.16] disabled:opacity-50"
       >
         {loading ? <Loader2 className="size-4 animate-spin" /> : "Tarief berekenen"}
       </Button>

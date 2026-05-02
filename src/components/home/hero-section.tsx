@@ -59,8 +59,8 @@ export function HeroSection() {
       {/* ── Content ──────────────────────────────────────── */}
       <div className="mx-auto grid max-w-6xl items-start gap-6 px-4 pt-6 sm:gap-10 sm:px-6 sm:pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:pt-20 lg:pb-8">
 
-        {/* ── Left: text ── */}
-        <div className="flex flex-col gap-4 sm:gap-6">
+        {/* ── Left: text — centered on mobile, left-aligned on desktop ── */}
+        <div className="flex flex-col items-center gap-4 text-center sm:items-start sm:gap-6 sm:text-left">
           {/* Badge */}
           <span className="atb-fade-up atb-delay-0 w-fit rounded-full border border-[#D6B58A]/20 bg-[#D6B58A]/[0.07] px-3 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-[#D6B58A] sm:px-4 sm:py-1.5 sm:text-[11px]">
             Taxivervoer in Almere
