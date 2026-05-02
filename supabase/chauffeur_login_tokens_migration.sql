@@ -12,6 +12,9 @@ create table if not exists public.driver_login_tokens (
 create index if not exists idx_driver_login_tokens_driver_id on public.driver_login_tokens(driver_id);
 create index if not exists idx_driver_login_tokens_expires_at on public.driver_login_tokens(expires_at);
 create index if not exists idx_driver_login_tokens_used_at on public.driver_login_tokens(used_at);
+create index if not exists driver_login_tokens_token_hash_idx on public.driver_login_tokens(token_hash);
+create index if not exists driver_login_tokens_driver_id_idx on public.driver_login_tokens(driver_id);
+create index if not exists driver_login_tokens_expires_at_idx on public.driver_login_tokens(expires_at);
 
 alter table public.drivers
   add column if not exists last_login_at timestamptz;

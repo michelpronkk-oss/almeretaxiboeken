@@ -1,17 +1,13 @@
 import "server-only"
-import crypto from "crypto"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
-
-function hashToken(token: string) {
-  return crypto.createHash("sha256").update(token).digest("hex")
-}
+import { createRawToken, hashToken } from "@/lib/chauffeur/tokens"
 
 function tokenExpiry(minutes: number) {
   return new Date(Date.now() + minutes * 60 * 1000).toISOString()
 }
 
 export async function createDriverAccessToken(driverId: string, minutes: number) {
-  const token = crypto.randomBytes(32).toString("base64url")
+  const token = createRawToken()
   const tokenHash = hashToken(token)
   const supabase = getSupabaseServiceClient()
 
@@ -38,9 +34,13 @@ export async function consumeDriverAccessToken(token: string) {
     .eq("token_hash", tokenHash)
     .maybeSingle()
 
-  if (error || !row) return { ok: false as const, reason: "invalid" as const }
-  if (row.used_at) return { ok: false as const, reason: "used" as const }
-  if (new Date(row.expires_at).getTime() < Date.now()) return { ok: false as const, reason: "expired" as const }
+  const tokenFound = Boolean(row) && !error
+  const isUsed = Boolean(row?.used_at)
+  const isExpired = row ? new Date(row.expires_at).getTime() < Date.now() : false
+
+  if (error || !row) return { ok: false as const, reason: "invalid" as const, tokenFound: false, isUsed: false, isExpired: false }
+  if (isUsed) return { ok: false as const, reason: "used" as const, tokenFound, isUsed, isExpired: false }
+  if (isExpired) return { ok: false as const, reason: "expired" as const, tokenFound, isUsed: false, isExpired }
 
   const { data: driver, error: driverError } = await supabase
     .from("drivers")
@@ -48,8 +48,11 @@ export async function consumeDriverAccessToken(token: string) {
     .eq("id", row.driver_id)
     .maybeSingle()
 
-  if (driverError || !driver) return { ok: false as const, reason: "invalid" as const }
-  if (!driver.active || driver.approval_status !== "approved") return { ok: false as const, reason: "not_approved" as const }
+  const driverFound = Boolean(driver) && !driverError
+  const driverApproved = Boolean(driver?.active && driver?.approval_status === "approved")
+
+  if (driverError || !driver) return { ok: false as const, reason: "invalid" as const, tokenFound, isUsed: false, isExpired: false, driverFound: false, driverApproved: false }
+  if (!driverApproved) return { ok: false as const, reason: "not_approved" as const, tokenFound, isUsed: false, isExpired: false, driverFound, driverApproved }
 
   const now = new Date().toISOString()
 
@@ -59,8 +62,8 @@ export async function consumeDriverAccessToken(token: string) {
   ])
 
   if (markTokenError || loginAtError) {
-    return { ok: false as const, reason: "invalid" as const }
+    return { ok: false as const, reason: "invalid" as const, tokenFound, isUsed: false, isExpired: false, driverFound, driverApproved }
   }
 
-  return { ok: true as const, driverId: driver.id }
+  return { ok: true as const, driverId: driver.id, tokenFound: true, isUsed: false, isExpired: false, driverFound: true, driverApproved: true }
 }

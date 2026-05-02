@@ -1,32 +1,23 @@
 import "server-only"
-import { cookies } from "next/headers"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
+import { clearChauffeurSession, getChauffeurSession } from "@/lib/chauffeur-auth"
 
-export const DRIVER_COOKIE_NAME = "atb_driver_id"
+export const DRIVER_COOKIE_NAME = "chauffeur_session"
 
-export async function setDriverAuthCookie(driverId: string) {
-  const store = await cookies()
-  store.set(DRIVER_COOKIE_NAME, driverId, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 12,
-  })
+export async function setDriverAuthCookie(_driverId: string) {
+  throw new Error("Deprecated: use setChauffeurSession from src/lib/chauffeur-auth.ts")
 }
 
 export async function clearDriverAuthCookie() {
-  const store = await cookies()
-  store.delete(DRIVER_COOKIE_NAME)
+  await clearChauffeurSession()
 }
 
 export async function getDriverSessionId() {
-  const store = await cookies()
-  return store.get(DRIVER_COOKIE_NAME)?.value || ""
+  return getChauffeurSession()
 }
 
 export async function getAuthenticatedDriverId() {
-  const driverId = await getDriverSessionId()
+  const driverId = await getChauffeurSession()
   if (!driverId) return ""
 
   const supabase = getSupabaseServiceClient()
@@ -37,7 +28,7 @@ export async function getAuthenticatedDriverId() {
     .maybeSingle()
 
   if (!driver || !driver.active || driver.approval_status !== "approved") {
-    await clearDriverAuthCookie()
+    await clearChauffeurSession()
     return ""
   }
 

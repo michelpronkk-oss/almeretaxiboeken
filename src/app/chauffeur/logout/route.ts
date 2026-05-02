@@ -1,9 +1,7 @@
-﻿import { NextResponse } from "next/server"
-import { DRIVER_COOKIE_NAME } from "@/lib/driver-auth"
+import { NextResponse } from "next/server"
+import { clearChauffeurSession } from "@/lib/chauffeur-auth"
 
 export async function GET(request: Request) {
-  const url = new URL("/chauffeur/login", request.url)
-  const res = NextResponse.redirect(url)
-  res.cookies.delete(DRIVER_COOKIE_NAME)
-  return res
+  await clearChauffeurSession()
+  return NextResponse.redirect(new URL("/chauffeur/login", request.url))
 }

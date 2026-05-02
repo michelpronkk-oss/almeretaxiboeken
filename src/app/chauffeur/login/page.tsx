@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation"
-import { getDriverSessionId } from "@/lib/driver-auth"
+import { getChauffeurSession } from "@/lib/chauffeur-auth"
 import { createDriverAccessToken } from "@/lib/driver-access"
 import { sendDriverLoginLinkEmail } from "@/lib/driver-access-email"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 import PendingSubmitButton from "@/components/internal/pending-submit-button"
 
-type SearchParams = Promise<{ sent?: string; debug?: string }>
+type SearchParams = Promise<{ sent?: string; debug?: string; error?: string }>
 
 async function requestLoginLinkAction(formData: FormData) {
   "use server"
@@ -39,16 +39,21 @@ async function requestLoginLinkAction(formData: FormData) {
   if (canSend && driver) {
     try {
       const token = await createDriverAccessToken(driver.id, 30)
+      console.info("[chauffeur-login-link] token stored", true)
+
       const sendResult = await sendDriverLoginLinkEmail(driver.email, token)
       if (sendResult.sent) {
+        console.info("[chauffeur-login-link] resend sent", true)
         console.info("[chauffeur-login-link] resend id", sendResult.id || "no-id")
       } else {
+        console.info("[chauffeur-login-link] resend sent", false)
         console.error("[chauffeur-login-link] resend error", sendResult.error || sendResult.reason || "unknown")
         if (process.env.NODE_ENV !== "production") {
           redirect(`/chauffeur/login?sent=1&debug=${encodeURIComponent(sendResult.error || sendResult.reason || "send_failed")}`)
         }
       }
     } catch (error) {
+      console.info("[chauffeur-login-link] token stored", false)
       console.error("[chauffeur-login-link] resend error", error instanceof Error ? error.message : "unknown")
       if (process.env.NODE_ENV !== "production") {
         redirect(`/chauffeur/login?sent=1&debug=${encodeURIComponent(error instanceof Error ? error.message : "send_failed")}`)
@@ -60,7 +65,7 @@ async function requestLoginLinkAction(formData: FormData) {
 }
 
 export default async function ChauffeurLoginPage({ searchParams }: { searchParams: SearchParams }) {
-  const existing = await getDriverSessionId()
+  const existing = await getChauffeurSession()
   if (existing) redirect("/chauffeur")
 
   const params = await searchParams
@@ -70,6 +75,12 @@ export default async function ChauffeurLoginPage({ searchParams }: { searchParam
       <div className="w-full rounded-2xl border border-[#292520] bg-[#141210] p-6">
         <h1 className="text-2xl font-semibold">Chauffeur login</h1>
         <p className="mt-2 text-sm text-[#B7AEA2]">Vul uw e-mailadres in. Als uw profiel is goedgekeurd, ontvangt u een beveiligde inloglink.</p>
+
+        {params.error ? (
+          <p className="mt-3 rounded-md border border-[#D94A4A]/30 bg-[#D94A4A]/10 px-3 py-2 text-xs text-[#ffb4b4]">
+            De inloglink is ongeldig of verlopen. Vraag een nieuwe inloglink aan.
+          </p>
+        ) : null}
 
         {params.sent === "1" ? (
           <div className="mt-3 rounded-md border border-[#22A06B]/30 bg-[#22A06B]/10 px-3 py-2 text-xs text-[#9de2c5]">
