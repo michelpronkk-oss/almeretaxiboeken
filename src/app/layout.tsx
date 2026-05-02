@@ -16,9 +16,9 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "AlmereTaxiBoeken — Betrouwbaar Taxivervoer in Almere",
+  title: "AlmereTaxiBoeken | Taxi in Almere, Schiphol & Zakelijk Vervoer",
   description:
-    "Professioneel taxivervoer in Almere. Vaste tarieven voor luchthavens, zakelijke ritten en particulier vervoer. Direct bevestigd.",
+    "Boek betrouwbaar taxivervoer in Almere. Bereken direct uw ritprijs, betaal veilig online en reserveer taxi, taxibus of luchthavenvervoer.",
 };
 
 export default function RootLayout({
@@ -73,3 +73,4 @@ export default function RootLayout({
     </html>
   );
 }
+

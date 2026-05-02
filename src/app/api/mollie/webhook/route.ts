@@ -1,10 +1,13 @@
-import { Resend } from "resend"
+﻿import { Resend } from "resend"
 import { companyEmailHtml, customerEmailHtml } from "@/lib/email-templates"
+import { mapMollieToBookingPaymentStatus } from "@/lib/mollie-status"
+import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 interface MolliePayment {
   id: string
   status: string
   metadata?: {
+    bookingId?: string
     bookingRef?: string
     origin?: string
     destination?: string
@@ -18,17 +21,31 @@ interface MolliePayment {
   }
 }
 
+function eventTypeFromStatus(status: string): string {
+  if (status === "paid") return "mollie_paid"
+  if (status === "failed") return "mollie_failed"
+  if (status === "canceled") return "mollie_canceled"
+  if (status === "expired") return "mollie_expired"
+  return "mollie_status_updated"
+}
+
+function bookingStatusFromPayment(status: string): string {
+  if (status === "paid") return "unassigned"
+  if (status === "canceled") return "cancelled"
+  return "pending_payment"
+}
+
 export async function POST(request: Request) {
   const formData = await request.formData()
   const paymentId = String(formData.get("id") || "").trim()
 
   if (!paymentId) {
-    return new Response("Missing payment id", { status: 400 })
+    return new Response("ok", { status: 200 })
   }
 
   const mollieApiKey = process.env.MOLLIE_API_KEY
   if (!mollieApiKey) {
-    return new Response("Mollie not configured", { status: 503 })
+    return new Response("ok", { status: 200 })
   }
 
   const paymentRes = await fetch(`https://api.mollie.com/v2/payments/${paymentId}`, {
@@ -37,10 +54,40 @@ export async function POST(request: Request) {
   })
 
   if (!paymentRes.ok) {
-    return new Response("Payment lookup failed", { status: 502 })
+    return new Response("ok", { status: 200 })
   }
 
   const payment = (await paymentRes.json()) as MolliePayment
+  const supabase = getSupabaseServiceClient()
+
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("id, reference, payment_status")
+    .eq("mollie_payment_id", paymentId)
+    .maybeSingle()
+
+  if (!booking) {
+    return new Response("ok", { status: 200 })
+  }
+
+  const nextPaymentStatus = mapMollieToBookingPaymentStatus(payment.status)
+  const nextBookingStatus = bookingStatusFromPayment(payment.status)
+
+  await supabase
+    .from("bookings")
+    .update({
+      payment_status: nextPaymentStatus,
+      booking_status: nextBookingStatus,
+    })
+    .eq("id", booking.id)
+
+  await supabase.from("booking_events").insert({
+    booking_id: booking.id,
+    event_type: eventTypeFromStatus(payment.status),
+    actor_type: "system",
+    note: `Mollie status: ${payment.status}`,
+  })
+
   if (payment.status !== "paid") {
     return new Response("ok", { status: 200 })
   }

@@ -1,3 +1,5 @@
+﻿import { getSupabaseServiceClient } from "@/lib/supabase/server"
+
 interface BookingBody {
   origin: string
   destination: string
@@ -10,6 +12,8 @@ interface BookingBody {
   price: number
   distanceKm: number
   durationMin: number
+  passengers?: number
+  notes?: string
 }
 
 function generateRef(): string {
@@ -42,12 +46,55 @@ export async function POST(request: Request) {
     return Response.json({ error: "Betalen is tijdelijk niet beschikbaar." }, { status: 503 })
   }
 
+  const supabase = getSupabaseServiceClient()
   const bookingRef = generateRef()
+
+  const { data: insertedBooking, error: insertError } = await supabase
+    .from("bookings")
+    .insert({
+      reference: bookingRef,
+      customer_name: name,
+      customer_email: email,
+      customer_phone: phone,
+      pickup_address: origin,
+      destination_address: destination,
+      pickup_date: date,
+      pickup_time: time,
+      passengers:
+        typeof body.passengers === "number"
+          ? body.passengers
+          : vehicleType === "taxibus"
+            ? 5
+            : 1,
+      vehicle_type: vehicleType,
+      distance_km: Number(body.distanceKm ?? 0),
+      duration_minutes: Number(body.durationMin ?? 0),
+      estimated_fare: Number(price),
+      currency: process.env.TAXI_CURRENCY || "EUR",
+      payment_status: "pending_payment",
+      booking_status: "pending_payment",
+      notes: body.notes ?? null,
+    })
+    .select("id, reference")
+    .single()
+
+  if (insertError || !insertedBooking) {
+    return Response.json({ error: "Boeking kon niet worden opgeslagen." }, { status: 500 })
+  }
+
+  await supabase.from("booking_events").insert({
+    booking_id: insertedBooking.id,
+    event_type: "booking_created",
+    actor_type: "customer",
+    note: "Boeking aangemaakt, wacht op betaling.",
+  })
+
   const redirectBase = process.env.MOLLIE_REDIRECT_URL ?? "https://almeretaxiboeken.nl/boeking/bedankt"
   const webhookUrl = process.env.MOLLIE_WEBHOOK_URL ?? "https://almeretaxiboeken.nl/api/mollie/webhook"
 
   const redirectUrl = new URL(redirectBase)
-  redirectUrl.searchParams.set("booking_ref", bookingRef)
+  redirectUrl.searchParams.set("bookingId", insertedBooking.id)
+  redirectUrl.searchParams.set("reference", insertedBooking.reference)
 
   const mollieRes = await fetch("https://api.mollie.com/v2/payments", {
     method: "POST",
@@ -64,6 +111,7 @@ export async function POST(request: Request) {
       redirectUrl: redirectUrl.toString(),
       webhookUrl,
       metadata: {
+        bookingId: insertedBooking.id,
         bookingRef,
         origin,
         destination,
@@ -99,5 +147,31 @@ export async function POST(request: Request) {
     return Response.json({ error: "Betaling kon niet worden voorbereid." }, { status: 502 })
   }
 
-  return Response.json({ bookingRef, paymentId, checkoutUrl })
+  redirectUrl.searchParams.set("payment_id", paymentId)
+
+  const { error: updateError } = await supabase
+    .from("bookings")
+    .update({
+      mollie_payment_id: paymentId,
+      mollie_checkout_url: checkoutUrl,
+    })
+    .eq("id", insertedBooking.id)
+
+  if (updateError) {
+    return Response.json({ error: "Boeking is aangemaakt maar betaling niet gekoppeld." }, { status: 500 })
+  }
+
+  await supabase.from("booking_events").insert({
+    booking_id: insertedBooking.id,
+    event_type: "mollie_payment_created",
+    actor_type: "system",
+    note: `Mollie payment id: ${paymentId}`,
+  })
+
+  return Response.json({
+    bookingId: insertedBooking.id,
+    bookingRef: insertedBooking.reference,
+    paymentId,
+    checkoutUrl,
+  })
 }

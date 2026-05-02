@@ -168,3 +168,47 @@
   font-weight: 600;
   color: #D4B896;
 }
+
+/* ── AlmereTaxiBoeken – hero animations ──────────────────── */
+
+@keyframes atb-glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1;   }
+}
+
+.animate-atb-glow {
+  animation: atb-glow-pulse 7s ease-in-out infinite;
+}
+.animate-atb-glow-2 {
+  animation: atb-glow-pulse 10s ease-in-out infinite 3.5s;
+}
+
+/* Route line draw-on */
+.atb-route-line {
+  stroke-dasharray: 900;
+  stroke-dashoffset: 900;
+  animation: atb-draw-route 7s linear infinite;
+}
+
+@keyframes atb-draw-route {
+  0%   { stroke-dashoffset: 900; opacity: 0;   }
+  8%   { opacity: 1; }
+  85%  { opacity: 0.7; }
+  100% { stroke-dashoffset: 0;   opacity: 0;   }
+}
+
+/* Hide animated route elements for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-atb-glow,
+  .animate-atb-glow-2 {
+    animation: none;
+    opacity: 0.7;
+  }
+  .atb-route-line {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .atb-reduce-motion-hide {
+    display: none;
+  }
+}

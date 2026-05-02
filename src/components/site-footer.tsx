@@ -2,17 +2,59 @@ import Link from "next/link"
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-white/[0.06] py-10">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 px-6 sm:flex-row">
-        <Link href="/" className="text-[15px] font-semibold text-white/55">
-          AlmereTaxi<span className="text-[#D4B896]">Boeken</span>
-        </Link>
-        <p className="text-xs text-white/25">
-          © 2026 AlmereTaxiBoeken. Alle rechten voorbehouden.
-        </p>
-        <div className="flex gap-6 text-xs text-white/25">
-          <Link href="#" className="transition-colors hover:text-white/50">Privacy</Link>
-          <Link href="#" className="transition-colors hover:text-white/50">Voorwaarden</Link>
+    <footer className="border-t border-[#1F1C18] bg-[#080807]">
+      <div className="mx-auto max-w-6xl px-6 py-14">
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <h3 className="text-base font-semibold text-[#F5F1E8]">
+              AlmereTaxi<span className="text-[#D6B58A]">Boeken</span>
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-[#B7AEA2]">
+              Betrouwbaar taxivervoer in Almere voor luchthavenritten, zakelijke ritten en
+              particulier vervoer.
+            </p>
+            <p className="mt-3 text-xs text-[#7F776E]">
+              Vaste tarieven • Veilig online betalen • Almere en omgeving
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-[#F5F1E8]">Diensten</h4>
+            <div className="mt-3 flex flex-col gap-2 text-sm text-[#B7AEA2]">
+              <Link href="/luchthavenvervoer" className="transition-colors hover:text-[#D6B58A]">Luchthaven vervoer</Link>
+              <Link href="/zakelijk-vervoer" className="transition-colors hover:text-[#D6B58A]">Zakelijk vervoer</Link>
+              <Link href="/particulier-vervoer" className="transition-colors hover:text-[#D6B58A]">Particulier vervoer</Link>
+              <Link href="/taxi-almere-schiphol" className="transition-colors hover:text-[#D6B58A]">Taxi naar Schiphol</Link>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-[#F5F1E8]">Contact</h4>
+            <div className="mt-3 flex flex-col gap-2 text-sm text-[#B7AEA2]">
+              <a href="tel:+31853038136" className="transition-colors hover:text-[#D6B58A]">Bel direct: 085 303 8136</a>
+              <a href="https://wa.me/31853038136" className="transition-colors hover:text-[#25D366]">WhatsApp: 085 303 8136</a>
+              <p>Almere en omgeving</p>
+              <p>24/7 op aanvraag</p>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-[#F5F1E8]">Informatie</h4>
+            <div className="mt-3 flex flex-col gap-2 text-sm text-[#B7AEA2]">
+              <Link href="/tarieven" className="transition-colors hover:text-[#D6B58A]">Tarieven</Link>
+              <Link href="/veelgestelde-vragen" className="transition-colors hover:text-[#D6B58A]">Veelgestelde vragen</Link>
+              <Link href="/privacy" className="transition-colors hover:text-[#D6B58A]">Privacy</Link>
+              <Link href="/voorwaarden" className="transition-colors hover:text-[#D6B58A]">Voorwaarden</Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-[#1F1C18] pt-5 text-xs text-[#7F776E] sm:flex-row sm:items-center">
+          <p>© 2026 AlmereTaxiBoeken. Alle rechten voorbehouden.</p>
+          <div className="flex gap-5">
+            <Link href="/privacy" className="transition-colors hover:text-[#D6B58A]">Privacy</Link>
+            <Link href="/voorwaarden" className="transition-colors hover:text-[#D6B58A]">Voorwaarden</Link>
+          </div>
         </div>
       </div>
     </footer>

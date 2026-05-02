@@ -1,33 +1,101 @@
+"use client"
+
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Phone } from "lucide-react"
+import { Menu, Phone, X } from "lucide-react"
 import Link from "next/link"
 
-const PHONE = "+31361234567"
+const PHONE = "+31853038136"
+const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "31853038136"
+
+const navItems = [
+  { label: "Diensten", href: "/diensten" },
+  { label: "Tarieven", href: "/tarieven" },
+  { label: "Waarom ons", href: "/#waarom-ons" },
+  { label: "FAQ", href: "/veelgestelde-vragen" },
+  { label: "Contact", href: "/contact" },
+]
 
 export function SiteHeader() {
+  const [mobileOpen, setMobileOpen] = useState(false)
+
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/[0.05] bg-[#0a0a0a]/90 backdrop-blur-md">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-[#1F1C18] bg-[rgba(8,8,7,0.86)] backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="text-[15px] font-semibold tracking-tight text-white">
-          AlmereTaxi<span className="text-[#D4B896]">Boeken</span>
+        <Link href="/" className="text-[15px] font-semibold tracking-tight">
+          <span className="text-[#F5F1E8]">AlmereTaxi</span>
+          <span className="text-[#D6B58A]">Boeken</span>
         </Link>
 
-        <nav className="hidden gap-8 text-sm text-white/45 md:flex">
-          <a href="/#diensten" className="transition-colors hover:text-white">Diensten</a>
-          <a href="/#waarom-ons" className="transition-colors hover:text-white">Waarom ons</a>
-          <Link href="/contact" className="transition-colors hover:text-white">Contact</Link>
+        <nav className="hidden items-center gap-7 text-sm md:flex">
+          {navItems.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className="text-[#B7AEA2] transition-colors hover:text-[#F5F1E8]"
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
 
-        <Button
-          asChild
-          className="h-9 gap-2 border border-[#D4B896]/50 bg-transparent px-4 text-sm font-semibold text-[#D4B896] hover:bg-[#D4B896]/[0.1]"
-        >
-          <a href={`tel:${PHONE}`}>
-            <Phone className="size-3.5" />
-            Bel direct
-          </a>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            asChild
+            className="hidden h-9 gap-2 border border-[#3A2D1F] bg-transparent px-4 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815] md:inline-flex"
+          >
+            <a href={`tel:${PHONE}`}>
+              <Phone className="size-3.5" />
+              Bel direct
+            </a>
+          </Button>
+
+          <button
+            type="button"
+            onClick={() => setMobileOpen((v) => !v)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[#292520] text-[#B7AEA2] transition-colors hover:bg-[#151311] hover:text-[#F5F1E8] md:hidden"
+            aria-label="Menu openen"
+          >
+            {mobileOpen ? <X className="size-4" /> : <Menu className="size-4" />}
+          </button>
+        </div>
       </div>
+
+      {mobileOpen ? (
+        <div className="border-t border-[#1F1C18] bg-[#080807] px-6 py-4 md:hidden">
+          <nav className="flex flex-col gap-3 text-sm">
+            <Link href="/#contact" onClick={() => setMobileOpen(false)} className="text-[#F5F1E8]">
+              Rit reserveren
+            </Link>
+            {navItems.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className="text-[#B7AEA2] transition-colors hover:text-[#D6B58A]"
+              >
+                {item.label}
+              </Link>
+            ))}
+            <a
+              href={`tel:${PHONE}`}
+              onClick={() => setMobileOpen(false)}
+              className="pt-1 text-[#D6B58A]"
+            >
+              Bel direct
+            </a>
+            <a
+              href={`https://wa.me/${WHATSAPP_NUMBER}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileOpen(false)}
+              className="text-[#25D366]"
+            >
+              WhatsApp
+            </a>
+          </nav>
+        </div>
+      ) : null}
     </header>
   )
 }
