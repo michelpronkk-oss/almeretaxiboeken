@@ -8,11 +8,14 @@ import OnboardingWizard, { OnboardingInvalidCard, OnboardingSuccessCard } from "
 type SearchParams = Promise<{ token?: string; success?: string; error?: string }>
 
 const allowedMimeTypes = new Set([
-  "application/pdf",
   "image/jpeg",
   "image/jpg",
   "image/png",
   "image/webp",
+  "image/heic",
+  "image/heif",
+  "image/heic-sequence",
+  "image/heif-sequence",
 ])
 
 function safeName(name: string) {

@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { FileText, ShieldCheck, Upload, User, CarFront } from "lucide-react"
 import { useMemo, useRef, useState } from "react"
+import { useFormStatus } from "react-dom"
 
 interface OnboardingWizardProps {
   token: string
@@ -37,6 +38,9 @@ function UploadCard({
   inputRef: React.RefObject<HTMLInputElement | null>
   name: FileKey
 }) {
+  const hasFile = Boolean(fileName)
+  const actionLabel = hasFile ? "Nieuwe foto maken" : `Foto maken van ${label.toLowerCase()}`
+
   return (
     <div className="rounded-xl border border-[#292520] bg-[#0D0C0B] p-3 sm:p-4">
       <div className="flex items-center justify-between gap-2">
@@ -45,13 +49,15 @@ function UploadCard({
           {required ? "Verplicht" : "Optioneel"}
         </span>
       </div>
-      <p className="mt-1 text-xs text-[#7F776E]">PDF, JPG, PNG, WEBP - max 8MB</p>
+      <p className="mt-1 text-xs text-[#7F776E]">Maak een duidelijke foto. Zorg dat alle gegevens goed leesbaar zijn.</p>
+      <p className="mt-1 text-xs text-[#7F776E]">JPG, PNG, WEBP, HEIC/HEIF - max 8MB</p>
 
       <input
         ref={inputRef}
         type="file"
         name={name}
-        accept=".pdf,.jpg,.jpeg,.png,.webp"
+        accept="image/*"
+        capture="environment"
         required={required}
         className="sr-only"
         onChange={(e) => onPick(e.target.files?.[0] ?? null)}
@@ -61,10 +67,10 @@ function UploadCard({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="inline-flex items-center gap-1.5 rounded-md border border-[#3A2D1F] px-3 py-1.5 text-xs font-semibold text-[#D6B58A] hover:bg-[#1B1815]"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815]"
         >
           <Upload className="h-3.5 w-3.5" />
-          Bestand kiezen
+          {actionLabel}
         </button>
 
         {fileName ? (
@@ -75,7 +81,7 @@ function UploadCard({
       </div>
 
       <p className={`mt-2 text-xs ${fileName ? "text-[#22A06B]" : "text-[#7F776E]"}`}>
-        {fileName ? `Geselecteerd: ${fileName}` : "Nog geen bestand geselecteerd"}
+        {fileName ? `Foto geselecteerd: ${fileName}` : "Nog geen foto geselecteerd"}
       </p>
     </div>
   )
@@ -104,6 +110,20 @@ export default function OnboardingWizard({ token, email, error, submitAction }: 
   const identityRef = useRef<HTMLInputElement>(null)
 
   const progress = useMemo(() => `${Math.round((step / 4) * 100)}%`, [step])
+
+  const missingFields = useMemo(() => {
+    const missing: string[] = []
+    if (!firstName.trim()) missing.push("Voornaam")
+    if (!lastName.trim()) missing.push("Achternaam")
+    if (!phone.trim()) missing.push("Telefoonnummer")
+    if (!address.trim()) missing.push("Adres")
+    if (!vehicleType.trim()) missing.push("Voertuigtype")
+    if (!licensePlate.trim()) missing.push("Kenteken")
+    if (!files.driver_license) missing.push("Rijbewijs")
+    if (!files.taxi_pass) missing.push("Chauffeurspas / taxipas")
+    if (!confirmed) missing.push("Bevestiging checkbox")
+    return missing
+  }, [address, confirmed, files.driver_license, files.taxi_pass, firstName, lastName, licensePlate, phone, vehicleType])
 
   function clearFile(key: FileKey, ref: React.RefObject<HTMLInputElement | null>) {
     setFiles((prev) => ({ ...prev, [key]: null }))
@@ -152,6 +172,22 @@ export default function OnboardingWizard({ token, email, error, submitAction }: 
     setStep((prev) => Math.max(1, prev - 1))
   }
 
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    if (step !== 4) {
+      e.preventDefault()
+      setLocalError("Ga naar stap 4 om uw profiel te verzenden.")
+      return
+    }
+
+    if (missingFields.length > 0) {
+      e.preventDefault()
+      setLocalError(`Ontbrekend: ${missingFields.join(", ")}.`)
+      return
+    }
+
+    setLocalError("")
+  }
+
   return (
     <section className="mx-auto w-full max-w-[720px] px-4 pb-10 pt-5 sm:px-6 sm:pt-8">
       <div className="rounded-[22px] border border-[#292520] bg-[#151311] p-4 sm:p-6">
@@ -179,7 +215,7 @@ export default function OnboardingWizard({ token, email, error, submitAction }: 
         {error ? <p className="mt-3 rounded-md border border-[#D94A4A]/30 bg-[#D94A4A]/10 px-3 py-2 text-xs text-[#ffb4b4]">{error}</p> : null}
         {localError ? <p className="mt-3 rounded-md border border-[#D94A4A]/30 bg-[#D94A4A]/10 px-3 py-2 text-xs text-[#ffb4b4]">{localError}</p> : null}
 
-        <form action={submitAction} className="mt-4 space-y-4">
+        <form action={submitAction} onSubmit={handleSubmit} className="mt-4 space-y-4">
           <input type="hidden" name="token" value={token} />
 
           <div className={step === 1 ? "block" : "hidden"}>
@@ -269,6 +305,13 @@ export default function OnboardingWizard({ token, email, error, submitAction }: 
                 <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-0.5" />
                 Ik bevestig dat de ingevulde gegevens correct zijn.
               </label>
+
+              {missingFields.length > 0 ? (
+                <div className="rounded-lg border border-[#D94A4A]/30 bg-[#D94A4A]/10 p-3 text-xs text-[#ffb4b4]">
+                  <p className="font-medium">Controleer de ontbrekende velden:</p>
+                  <p className="mt-1">{missingFields.join(", ")}</p>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -287,16 +330,33 @@ export default function OnboardingWizard({ token, email, error, submitAction }: 
                 Volgende
               </button>
             ) : (
-              <button type="submit" disabled={!confirmed} className="rounded-md border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815] disabled:opacity-40">
-                Profiel verzenden
-              </button>
+              <SubmitButton disabledReason={missingFields.length > 0} />
             )}
           </div>
+
+          {step === 4 && missingFields.length > 0 ? (
+            <p className="text-right text-xs text-[#7F776E]">Controleer de ontbrekende velden hierboven voordat u verzendt.</p>
+          ) : null}
         </form>
       </div>
 
       <p className="px-1 pt-4 text-center text-xs text-[#7F776E]">Hulp nodig? Neem contact op met planning van AlmereTaxiBoeken.</p>
     </section>
+  )
+}
+
+function SubmitButton({ disabledReason }: { disabledReason: boolean }) {
+  const { pending } = useFormStatus()
+  const disabled = pending || disabledReason
+
+  return (
+    <button
+      type="submit"
+      disabled={disabled}
+      className="rounded-md border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815] disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      {pending ? "Verzenden..." : "Profiel verzenden"}
+    </button>
   )
 }
 
