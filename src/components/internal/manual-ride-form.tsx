@@ -287,9 +287,10 @@ export default function ManualRideForm() {
         </article>
 
         {/* 2. Ritgegevens */}
-        <article className="min-w-0 overflow-x-hidden rounded-2xl border border-[#292520] bg-[#141210] p-4">
+        <article className="min-w-0 rounded-2xl border border-[#292520] bg-[#141210] p-4">
           <h2 className="text-sm font-semibold text-[#F5F1E8]">2. Ritgegevens</h2>
-          <div className="mt-3 min-w-0 space-y-3">
+          {/* Every field uses the same fieldCls so they are pixel-identical in size */}
+          <div className="mt-3 w-full min-w-0 space-y-3">
             <AddressAutocomplete
               label="Vertrekadres"
               value={pickupAddress}
@@ -306,24 +307,28 @@ export default function ManualRideForm() {
               placeholder="Bestemmingsadres"
               inputClassName="h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] placeholder:text-[#8F877D] outline-none focus:border-[#D6B58A]/50 sm:h-10 sm:text-sm"
             />
-            {/* Date — full width on mobile, side-by-side from md */}
-            <div className="min-w-0 space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
+            {/* Datum — full-width on mobile, 2-col from md */}
+            <div className="grid w-full min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
               <input
                 type="date"
                 value={pickupDate}
                 onChange={(e) => setPickupDate(e.target.value)}
-                className="admin-date-input h-11 w-full max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm"
+                className="admin-date-input h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] [color-scheme:dark] sm:h-10 sm:text-sm"
               />
               <input
                 type="time"
                 value={pickupTime}
                 onChange={(e) => setPickupTime(e.target.value)}
-                className="admin-date-input h-11 w-full max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm"
+                className="admin-date-input h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] [color-scheme:dark] sm:h-10 sm:text-sm"
               />
             </div>
-            {/* Passengers + vehicle — stacked on mobile, side-by-side from md */}
-            <div className="min-w-0 space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
-              <select value={passengers} onChange={(e) => setPassengers(Number(e.target.value))} className="h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm">
+            {/* Passagiers + voertuig — full-width on mobile, 2-col from md */}
+            <div className="grid w-full min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
+              <select
+                value={passengers}
+                onChange={(e) => setPassengers(Number(e.target.value))}
+                className="h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm"
+              >
                 {passengerOptions.map((p) => (
                   <option key={p} value={p}>{p} {p === 1 ? "persoon" : "personen"}</option>
                 ))}
@@ -338,7 +343,12 @@ export default function ManualRideForm() {
               </select>
             </div>
             {vehicleWarning ? <p className="text-xs text-[#D6B58A]">{vehicleWarning}</p> : null}
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opmerkingen (optioneel)" className="min-h-20 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 py-2 text-base text-[#F5F1E8] sm:text-sm" />
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Opmerkingen (optioneel)"
+              className="min-h-20 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 py-2 text-base text-[#F5F1E8] sm:text-sm"
+            />
           </div>
         </article>
       </div>

@@ -26,32 +26,28 @@ export function SiteHeader() {
     <header className="fixed inset-x-0 top-0 z-50 border-b border-[#1F1C18] bg-[rgba(8,8,7,0.92)] md:bg-[rgba(8,8,7,0.86)] md:backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2">
-          {/* Mobile: icon only */}
+          {/* Icon — always visible (mobile + desktop) */}
           <Image
-            src="/logo-icon.png"
+            src="/icon.svg"
             alt="Almere Taxi Boeken"
             width={32}
             height={32}
-            className="h-8 w-8 object-contain md:hidden"
+            className="h-8 w-8 shrink-0"
+            style={{ width: "32px", height: "32px" }}
+            unoptimized
             priority
           />
-          {/* Desktop: icon + wordmark */}
+          {/* Wordmark — desktop only (md+) */}
+          {/* Wordmark intrinsic: 1898×829, rendered h-[44px] → w ≈ 101px */}
           <Image
-            src="/logo-icon.png"
+            src="/wordmark.svg"
             alt=""
-            width={32}
-            height={32}
             aria-hidden="true"
-            className="hidden h-8 w-8 object-contain md:block"
-            priority
-          />
-          <Image
-            src="/logo-wordmark.png"
-            alt="Almere Taxi Boeken"
-            width={260}
-            height={52}
-            className="hidden h-[52px] w-auto object-contain md:block"
-            style={{ width: "auto" }}
+            width={101}
+            height={44}
+            className="hidden object-contain md:block"
+            style={{ width: "auto", height: "44px" }}
+            unoptimized
             priority
           />
         </Link>

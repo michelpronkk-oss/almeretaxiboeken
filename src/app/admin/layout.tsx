@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu, X } from "lucide-react"
-import BrandLogo from "@/components/brand-logo"
+import BrandMark from "@/components/brand/brand-mark"
 
 const sidebarNav = [
   { href: "/admin", label: "Dashboard" },
@@ -38,7 +38,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Desktop sidebar */}
         <aside className="hidden w-64 shrink-0 border-r border-[#292520] bg-[#0D0C0B] p-5 lg:flex lg:flex-col">
-          <BrandLogo variant="sidebar" sublabel="Interne planning" priority />
+          <BrandMark sublabel="Interne planning" priority />
 
           <nav className="mt-8 space-y-1">
             {sidebarNav.map((item) => {
@@ -69,7 +69,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Mobile header */}
           <header className="sticky top-0 z-40 border-b border-[#292520] bg-[#0D0C0B] lg:hidden">
             <div className="flex items-center justify-between px-4 py-3">
-              <BrandLogo variant="mobile-icon" label="Admin" priority />
+              <BrandMark label="Admin" priority />
               <button
                 type="button"
                 onClick={() => setMenuOpen((v) => !v)}

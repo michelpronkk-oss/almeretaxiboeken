@@ -7,22 +7,27 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-6 py-14">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
+            {/* Footer brand: icon always, wordmark on md+ */}
             <Link href="/" className="flex items-center gap-2">
               <Image
-                src="/logo-icon.png"
-                alt=""
-                width={32}
-                height={32}
-                aria-hidden="true"
-                className="h-8 w-8 object-contain"
-              />
-              <Image
-                src="/logo-wordmark.png"
+                src="/icon.svg"
                 alt="Almere Taxi Boeken"
-                width={260}
-                height={52}
-                className="h-[52px] w-auto object-contain"
-                style={{ width: "auto" }}
+                width={28}
+                height={28}
+                className="h-7 w-7 shrink-0"
+                style={{ width: "28px", height: "28px" }}
+                unoptimized
+              />
+              {/* Wordmark: 1898×829, at h-[36px] → w ≈ 82px */}
+              <Image
+                src="/wordmark.svg"
+                alt=""
+                aria-hidden="true"
+                width={82}
+                height={36}
+                className="hidden object-contain sm:block"
+                style={{ width: "auto", height: "36px" }}
+                unoptimized
               />
             </Link>
             <p className="mt-3 text-sm leading-relaxed text-[#B7AEA2]">

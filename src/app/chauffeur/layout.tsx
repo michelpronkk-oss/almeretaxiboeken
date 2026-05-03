@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Car, LayoutDashboard, LogOut } from "lucide-react"
-import BrandLogo from "@/components/brand-logo"
+import BrandMark from "@/components/brand/brand-mark"
 
 const BARE_PATHS = ["/chauffeur/login", "/chauffeur/onboarding", "/chauffeur/access"]
 
@@ -25,7 +25,7 @@ export default function ChauffeurLayout({ children }: { children: React.ReactNod
         <div className="mx-auto w-full max-w-2xl sm:hidden">
           <div className="flex w-full items-center justify-between gap-2 px-4 pt-2.5 pb-2">
             <div className="min-w-0 flex-1">
-              <BrandLogo variant="mobile-icon" label="Chauffeur" priority />
+              <BrandMark label="Chauffeur" priority />
             </div>
             <a
               href="/chauffeur/logout"
@@ -60,7 +60,7 @@ export default function ChauffeurLayout({ children }: { children: React.ReactNod
         </div>
 
         <div className="mx-auto hidden max-w-2xl items-center justify-between px-6 sm:flex sm:h-14">
-          <BrandLogo variant="sidebar" sublabel="Chauffeurportaal" priority />
+          <BrandMark sublabel="Chauffeurportaal" priority />
 
           <div className="flex items-center gap-1">
             {nav.map((item) => {
