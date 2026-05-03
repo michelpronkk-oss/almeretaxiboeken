@@ -240,6 +240,35 @@
   margin-inline-start: 0;
 }
 
+/* Admin internal forms — force native date/time inputs to obey container width */
+.admin-date-input {
+  box-sizing: border-box;
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.admin-date-input::-webkit-date-and-time-value {
+  min-inline-size: 0;
+  text-align: left;
+}
+
+.admin-date-input::-webkit-calendar-picker-indicator {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+
+@media (max-width: 767px) {
+  .admin-date-input {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+}
+
 @media (max-width: 767px) {
   .atb-booking-glow {
     animation: none;

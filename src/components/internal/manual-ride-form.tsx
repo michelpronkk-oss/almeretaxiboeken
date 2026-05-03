@@ -260,7 +260,7 @@ export default function ManualRideForm() {
   }
 
   return (
-    <section className="space-y-5">
+    <section className="min-w-0 space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-[#F5F1E8]">Nieuwe rit invoeren</h1>
@@ -275,9 +275,9 @@ export default function ManualRideForm() {
       {warning ? <p className="rounded-md border border-[#D6B58A]/30 bg-[#D6B58A]/10 px-3 py-2 text-xs text-[#D6B58A]">{warning}</p> : null}
       {error ? <p className="rounded-md border border-[#D94A4A]/30 bg-[#D94A4A]/10 px-3 py-2 text-xs text-[#ffb4b4]">{error}</p> : null}
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
         {/* 1. Klantgegevens */}
-        <article className="rounded-2xl border border-[#292520] bg-[#141210] p-4">
+        <article className="min-w-0 rounded-2xl border border-[#292520] bg-[#141210] p-4">
           <h2 className="text-sm font-semibold text-[#F5F1E8]">1. Klantgegevens</h2>
           <div className="mt-3 space-y-3">
             <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Klantnaam" className="h-11 w-full min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] placeholder:text-[#8F877D] sm:h-10 sm:text-sm" />
@@ -287,16 +287,16 @@ export default function ManualRideForm() {
         </article>
 
         {/* 2. Ritgegevens */}
-        <article className="rounded-2xl border border-[#292520] bg-[#141210] p-4">
+        <article className="min-w-0 overflow-x-hidden rounded-2xl border border-[#292520] bg-[#141210] p-4">
           <h2 className="text-sm font-semibold text-[#F5F1E8]">2. Ritgegevens</h2>
-          <div className="mt-3 space-y-3">
+          <div className="mt-3 min-w-0 space-y-3">
             <AddressAutocomplete
               label="Vertrekadres"
               value={pickupAddress}
               onChange={(value) => { setPickupAddress(value); setPickupLocation({ address: value, placeId: undefined }) }}
               onPlaceSelect={(place) => setPickupLocation(place)}
               placeholder="Vertrekadres"
-              inputClassName="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8] placeholder:text-[#8F877D] outline-none focus:border-[#D6B58A]/50"
+              inputClassName="h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] placeholder:text-[#8F877D] outline-none focus:border-[#D6B58A]/50 sm:h-10 sm:text-sm"
             />
             <AddressAutocomplete
               label="Bestemmingsadres"
@@ -304,14 +304,26 @@ export default function ManualRideForm() {
               onChange={(value) => { setDestinationAddress(value); setDestinationLocation({ address: value, placeId: undefined }) }}
               onPlaceSelect={(place) => setDestinationLocation(place)}
               placeholder="Bestemmingsadres"
-              inputClassName="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8] placeholder:text-[#8F877D] outline-none focus:border-[#D6B58A]/50"
+              inputClassName="h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] placeholder:text-[#8F877D] outline-none focus:border-[#D6B58A]/50 sm:h-10 sm:text-sm"
             />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <input type="date" value={pickupDate} onChange={(e) => setPickupDate(e.target.value)} className="h-11 w-full min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm" />
-              <input type="time" value={pickupTime} onChange={(e) => setPickupTime(e.target.value)} className="h-11 w-full min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm" />
+            {/* Date — full width on mobile, side-by-side from md */}
+            <div className="min-w-0 space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
+              <input
+                type="date"
+                value={pickupDate}
+                onChange={(e) => setPickupDate(e.target.value)}
+                className="admin-date-input h-11 w-full max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm"
+              />
+              <input
+                type="time"
+                value={pickupTime}
+                onChange={(e) => setPickupTime(e.target.value)}
+                className="admin-date-input h-11 w-full max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm"
+              />
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <select value={passengers} onChange={(e) => setPassengers(Number(e.target.value))} className="h-11 w-full min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm">
+            {/* Passengers + vehicle — stacked on mobile, side-by-side from md */}
+            <div className="min-w-0 space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
+              <select value={passengers} onChange={(e) => setPassengers(Number(e.target.value))} className="h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm">
                 {passengerOptions.map((p) => (
                   <option key={p} value={p}>{p} {p === 1 ? "persoon" : "personen"}</option>
                 ))}
@@ -319,14 +331,14 @@ export default function ManualRideForm() {
               <select
                 value={vehicleType}
                 onChange={(e) => { setVehicleType(e.target.value as "taxi" | "taxibus"); setAdminVehicleOverride(true) }}
-                className="h-11 w-full min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#D6B58A] sm:h-10 sm:text-sm"
+                className="h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#D6B58A] sm:h-10 sm:text-sm"
               >
                 <option value="taxi">Taxi</option>
                 <option value="taxibus">Taxibus</option>
               </select>
             </div>
             {vehicleWarning ? <p className="text-xs text-[#D6B58A]">{vehicleWarning}</p> : null}
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opmerkingen (optioneel)" className="min-h-20 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 py-2 text-sm text-[#F5F1E8]" />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opmerkingen (optioneel)" className="min-h-20 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 py-2 text-base text-[#F5F1E8] sm:text-sm" />
           </div>
         </article>
       </div>
