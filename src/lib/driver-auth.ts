@@ -1,6 +1,7 @@
 import "server-only"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 import { clearChauffeurSession, getChauffeurSession } from "@/lib/chauffeur-auth"
+import { getCurrentChauffeurDriver } from "@/lib/chauffeur/current-driver"
 
 export const DRIVER_COOKIE_NAME = "chauffeur_session"
 
@@ -16,22 +17,14 @@ export async function getDriverSessionId() {
   return getChauffeurSession()
 }
 
-export async function getAuthenticatedDriverId() {
-  const driverId = await getChauffeurSession()
-  if (!driverId) return ""
-
-  const supabase = getSupabaseServiceClient()
-  const { data: driver, error } = await supabase
-    .from("drivers")
-    .select("id, active, approval_status")
-    .eq("id", driverId)
-    .maybeSingle()
-
-  // Do not call clearChauffeurSession here: a transient DB error would destroy a valid session.
-  // Session cleanup is done only on explicit logout.
-  if (error || !driver || !driver.active || driver.approval_status !== "approved") return ""
-
-  return driver.id
+/**
+ * Returns the authenticated driver's public.drivers.id or "" if not logged in.
+ * Uses the shared session-parsing + DB-fallback logic from getCurrentChauffeurDriver.
+ * Never calls clearChauffeurSession — no destructive side-effects.
+ */
+export async function getAuthenticatedDriverId(): Promise<string> {
+  const result = await getCurrentChauffeurDriver()
+  return result.ok ? result.driver.id : ""
 }
 
 export interface AuthenticatedDriver {
@@ -46,29 +39,35 @@ export interface AuthenticatedDriver {
   default_assign: boolean
 }
 
+/**
+ * Returns the full authenticated driver object for page-level server components.
+ * Handles JSON sessions, legacy plain-UUID sessions, missing columns (pre-migration),
+ * and auth_user_id fallback — via getCurrentChauffeurDriver.
+ */
 export async function getAuthenticatedDriver(): Promise<AuthenticatedDriver | null> {
-  const driverId = await getChauffeurSession()
-  if (!driverId) return null
+  const result = await getCurrentChauffeurDriver()
+  if (!result.ok) return null
 
+  const d = result.driver
   const supabase = getSupabaseServiceClient()
-  const { data: driver, error } = await supabase
+
+  // vehicle_type is not included in CurrentDriver (it's portal-display-only).
+  // Fetch it separately with a minimal query so it doesn't affect auth logic.
+  const { data: extra } = await supabase
     .from("drivers")
-    .select("id, first_name, last_name, full_name, email, vehicle_type, active, approval_status, is_owner, can_dispatch, default_assign")
-    .eq("id", driverId)
+    .select("vehicle_type")
+    .eq("id", d.id)
     .maybeSingle()
 
-  // Do not call clearChauffeurSession here: a transient DB error would destroy a valid session.
-  if (error || !driver || !driver.active || driver.approval_status !== "approved") return null
-
   return {
-    id: driver.id,
-    first_name: driver.first_name ?? null,
-    last_name: driver.last_name ?? null,
-    full_name: driver.full_name ?? null,
-    email: driver.email ?? null,
-    vehicle_type: driver.vehicle_type ?? null,
-    is_owner: driver.is_owner ?? false,
-    can_dispatch: driver.can_dispatch ?? false,
-    default_assign: driver.default_assign ?? false,
+    id: d.id,
+    first_name: d.first_name,
+    last_name: d.last_name,
+    full_name: d.full_name,
+    email: d.email,
+    vehicle_type: extra?.vehicle_type ?? null,
+    is_owner: d.is_owner,
+    can_dispatch: d.can_dispatch,
+    default_assign: d.default_assign,
   }
 }

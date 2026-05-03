@@ -1,12 +1,16 @@
 import { NextRequest } from "next/server"
-import { getCurrentDriver } from "@/lib/chauffeur/current-driver"
+import { getCurrentChauffeurDriver } from "@/lib/chauffeur/current-driver"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 export async function POST(request: NextRequest) {
-  const currentDriver = await getCurrentDriver()
-  if (!currentDriver) {
-    return Response.json({ success: false, code: "NOT_AUTHORIZED", message: "Niet geautoriseerd." }, { status: 401 })
+  const authResult = await getCurrentChauffeurDriver()
+  if (!authResult.ok) {
+    return Response.json(
+      { success: false, code: "NOT_AUTHORIZED", message: "Niet geautoriseerd." },
+      { status: 401 },
+    )
   }
+  const currentDriver = authResult.driver
 
   const body = (await request.json()) as { bookingId?: string }
   const bookingId = String(body.bookingId || "").trim()
@@ -16,7 +20,6 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = getSupabaseServiceClient()
-
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
     .select("id, payment_method, payment_status, cash_collection_status, assigned_driver_id")
@@ -27,9 +30,13 @@ export async function POST(request: NextRequest) {
     return Response.json({ success: false, message: "Rit niet gevonden." }, { status: 404 })
   }
 
-  // Cash collection is strictly limited to the assigned driver (not even dispatchers).
+  // Cash collection is restricted to the assigned driver only —
+  // not even dispatchers can mark cash as collected on behalf of someone else.
   if (String(booking.assigned_driver_id ?? "") !== String(currentDriver.id)) {
-    return Response.json({ success: false, message: "Deze rit is niet aan u toegewezen." }, { status: 403 })
+    return Response.json(
+      { success: false, message: "Deze rit is niet aan u toegewezen." },
+      { status: 403 },
+    )
   }
 
   if (booking.payment_method !== "cash") {

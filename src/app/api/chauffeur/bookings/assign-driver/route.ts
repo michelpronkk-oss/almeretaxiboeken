@@ -1,39 +1,48 @@
 import { NextRequest } from "next/server"
-import { getCurrentDriver, driverHasDispatchRights } from "@/lib/chauffeur/current-driver"
+import { getCurrentChauffeurDriver } from "@/lib/chauffeur/current-driver"
+import { canDispatch } from "@/lib/chauffeur/permissions"
 import { sendEmail } from "@/lib/email/send"
 import { driverAssignedRideEmail } from "@/lib/email/templates"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 export async function POST(request: NextRequest) {
-  const currentDriver = await getCurrentDriver()
+  const authResult = await getCurrentChauffeurDriver()
 
-  console.log("[chauffeur-assign] currentDriverId exists:", !!currentDriver?.id)
-  console.log("[chauffeur-assign] currentDriverEmail:", currentDriver?.email ?? "(not found)")
-  console.log("[chauffeur-assign] isOwner:", currentDriver?.is_owner ?? false)
-  console.log("[chauffeur-assign] canDispatch:", currentDriver?.can_dispatch ?? false)
-  console.log("[chauffeur-assign] active:", currentDriver?.active ?? false)
-  console.log("[chauffeur-assign] approvalStatus:", currentDriver?.approval_status ?? "(none)")
-
-  if (!currentDriver) {
-    return Response.json(
-      { success: false, code: "NOT_AUTHORIZED", message: "Niet ingelogd als chauffeur." },
-      { status: 401 }
-    )
+  console.log("[chauffeur-assign] currentDriverId exists:", !!authResult.ok)
+  if (authResult.ok) {
+    console.log("[chauffeur-assign] currentDriverEmail:", authResult.driver.email ?? "(none)")
+    console.log("[chauffeur-assign] isOwner:", authResult.driver.is_owner)
+    console.log("[chauffeur-assign] canDispatch:", authResult.driver.can_dispatch)
+    console.log("[chauffeur-assign] active:", authResult.driver.active)
+    console.log("[chauffeur-assign] approvalStatus:", authResult.driver.approval_status)
+  } else {
+    console.log("[chauffeur-assign] auth failed:", authResult.code)
   }
 
-  if (!driverHasDispatchRights(currentDriver)) {
-    console.error("[chauffeur-authz-failed]", {
+  if (!authResult.ok) {
+    return Response.json(
+      { success: false, code: "NOT_AUTHORIZED", message: "Niet ingelogd als chauffeur." },
+      { status: 401 },
+    )
+  }
+  const currentDriver = authResult.driver
+
+  if (!canDispatch(currentDriver)) {
+    console.error("[chauffeur-authz]", {
       route: "assign-driver",
       currentDriverId: currentDriver.id,
       currentDriverEmail: currentDriver.email,
       isOwner: currentDriver.is_owner,
       canDispatch: currentDriver.can_dispatch,
-      active: currentDriver.active,
-      approvalStatus: currentDriver.approval_status,
+      failureCode: "NO_DISPATCH_RIGHTS",
     })
     return Response.json(
-      { success: false, code: "NOT_AUTHORIZED", message: "U heeft geen rechten om ritten toe te wijzen." },
-      { status: 403 }
+      {
+        success: false,
+        code: "NOT_AUTHORIZED",
+        message: "U heeft geen rechten om ritten toe te wijzen.",
+      },
+      { status: 403 },
     )
   }
 
@@ -44,7 +53,7 @@ export async function POST(request: NextRequest) {
   if (!bookingId || !targetDriverId) {
     return Response.json(
       { success: false, message: "bookingId en targetDriverId zijn verplicht." },
-      { status: 400 }
+      { status: 400 },
     )
   }
 
@@ -52,7 +61,9 @@ export async function POST(request: NextRequest) {
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id, reference, pickup_date, pickup_time, pickup_address, destination_address, vehicle_type, booking_status, deleted_at, archived_at")
+    .select(
+      "id, reference, pickup_date, pickup_time, pickup_address, destination_address, vehicle_type, booking_status, deleted_at, archived_at",
+    )
     .eq("id", bookingId)
     .maybeSingle()
 
@@ -61,12 +72,18 @@ export async function POST(request: NextRequest) {
   }
 
   if (booking.deleted_at || booking.archived_at) {
-    return Response.json({ success: false, message: "Rit is verwijderd of gearchiveerd." }, { status: 400 })
+    return Response.json(
+      { success: false, message: "Rit is verwijderd of gearchiveerd." },
+      { status: 400 },
+    )
   }
 
   const completedStatuses = ["completed", "cancelled", "canceled", "deleted"]
   if (completedStatuses.includes(booking.booking_status ?? "")) {
-    return Response.json({ success: false, message: "Rit kan niet meer worden toegewezen." }, { status: 400 })
+    return Response.json(
+      { success: false, message: "Rit kan niet meer worden toegewezen." },
+      { status: 400 },
+    )
   }
 
   const { data: targetDriver } = await supabase

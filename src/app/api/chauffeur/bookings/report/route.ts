@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
-import { getCurrentDriver, driverHasDispatchRights } from "@/lib/chauffeur/current-driver"
+import { getCurrentChauffeurDriver } from "@/lib/chauffeur/current-driver"
+import { canManageBooking } from "@/lib/chauffeur/permissions"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 interface ReportBody {
@@ -10,10 +11,14 @@ interface ReportBody {
 }
 
 export async function POST(request: NextRequest) {
-  const currentDriver = await getCurrentDriver()
-  if (!currentDriver) {
-    return Response.json({ success: false, code: "NOT_AUTHORIZED", message: "Niet geautoriseerd." }, { status: 401 })
+  const authResult = await getCurrentChauffeurDriver()
+  if (!authResult.ok) {
+    return Response.json(
+      { success: false, code: "NOT_AUTHORIZED", message: "Niet geautoriseerd." },
+      { status: 401 },
+    )
   }
+  const currentDriver = authResult.driver
 
   const body = (await request.json()) as ReportBody
   const bookingId = String(body.bookingId || "").trim()
@@ -22,13 +27,16 @@ export async function POST(request: NextRequest) {
   const note = String(body.note || "").trim()
 
   if (!bookingId || !reportType) {
-    return Response.json({ success: false, message: "bookingId en reportType zijn verplicht." }, { status: 400 })
+    return Response.json(
+      { success: false, message: "bookingId en reportType zijn verplicht." },
+      { status: 400 },
+    )
   }
 
   const supabase = getSupabaseServiceClient()
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id, booking_status, arrived_at, assigned_driver_id, deleted_at")
+    .select("id, reference, booking_status, arrived_at, assigned_driver_id, deleted_at")
     .eq("id", bookingId)
     .maybeSingle()
 
@@ -36,28 +44,34 @@ export async function POST(request: NextRequest) {
     return Response.json({ success: false, message: "Rit niet gevonden." }, { status: 404 })
   }
 
-  const isOwnRide = String(booking.assigned_driver_id ?? "") === String(currentDriver.id)
-  const hasDispatch = driverHasDispatchRights(currentDriver)
-
-  if (!isOwnRide && !hasDispatch) {
-    console.error("[chauffeur-authz-failed]", {
+  if (!canManageBooking(currentDriver, booking)) {
+    console.error("[chauffeur-authz]", {
       route: "report",
-      bookingId,
+      reference: booking.reference,
       currentDriverId: currentDriver.id,
       currentDriverEmail: currentDriver.email,
+      assignedDriverId: booking.assigned_driver_id,
+      assignedEqualsCurrent: String(booking.assigned_driver_id ?? "") === String(currentDriver.id),
       isOwner: currentDriver.is_owner,
       canDispatch: currentDriver.can_dispatch,
-      active: currentDriver.active,
-      approvalStatus: currentDriver.approval_status,
-      assignedDriverId: booking.assigned_driver_id,
-      assignedEqualsCurrent: isOwnRide,
+      failureCode: "BOOKING_NOT_ASSIGNED",
     })
-    return Response.json({ success: false, code: "NOT_AUTHORIZED", message: "Niet geautoriseerd." }, { status: 403 })
+    return Response.json(
+      {
+        success: false,
+        code: "NOT_AUTHORIZED",
+        message: "Deze rit is niet gekoppeld aan uw chauffeuraccount.",
+      },
+      { status: 403 },
+    )
   }
 
   if (reportType === "issue") {
     if (!reason || !note) {
-      return Response.json({ success: false, message: "Kies reden en voeg notitie toe." }, { status: 400 })
+      return Response.json(
+        { success: false, message: "Kies reden en voeg notitie toe." },
+        { status: 400 },
+      )
     }
 
     const { error } = await supabase
@@ -81,11 +95,17 @@ export async function POST(request: NextRequest) {
   }
 
   if (!note) {
-    return Response.json({ success: false, message: "No-show notitie is verplicht." }, { status: 400 })
+    return Response.json(
+      { success: false, message: "No-show notitie is verplicht." },
+      { status: 400 },
+    )
   }
 
   if (booking.booking_status !== "arrived") {
-    return Response.json({ success: false, message: "No-show melden kan alleen na aankomst." }, { status: 400 })
+    return Response.json(
+      { success: false, message: "No-show melden kan alleen na aankomst." },
+      { status: 400 },
+    )
   }
 
   if (!booking.arrived_at) {
@@ -94,10 +114,14 @@ export async function POST(request: NextRequest) {
 
   const arrivedAt = new Date(booking.arrived_at)
   const minNoShowAt = new Date(arrivedAt.getTime() + 10 * 60_000)
-  if (new Date().getTime() < minNoShowAt.getTime()) {
+  if (Date.now() < minNoShowAt.getTime()) {
     return Response.json(
-      { success: false, code: "TOO_EARLY_FOR_NO_SHOW", message: "No-show melden kan na 10 minuten wachttijd." },
-      { status: 400 }
+      {
+        success: false,
+        code: "TOO_EARLY_FOR_NO_SHOW",
+        message: "No-show melden kan na 10 minuten wachttijd.",
+      },
+      { status: 400 },
     )
   }
 
