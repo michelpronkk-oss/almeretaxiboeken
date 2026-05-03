@@ -10,7 +10,9 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\miche\\\\Desktop\\\\taxiboekenalmere-v2\" -Recurse -Force)",
       "Bash(Select-Object -First 50 FullName)",
       "Bash(npm run *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(.\\\\node_modules\\\\.bin\\\\next build *)",
+      "PowerShell(npx next build 2>&1)"
     ]
   }
 }

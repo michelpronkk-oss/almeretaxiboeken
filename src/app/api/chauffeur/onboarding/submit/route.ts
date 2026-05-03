@@ -6,7 +6,7 @@ import { chauffeurOnboardingSubmittedAdminEmail } from "@/lib/email/templates"
 import { getValidDriverInviteByToken } from "@/lib/chauffeur/invites"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
-const MAX_FILE_BYTES = 12 * 1024 * 1024
+const MAX_FILE_BYTES = 4 * 1024 * 1024
 
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
@@ -72,7 +72,7 @@ function validateFile(file: File | null, required: boolean, label: string): stri
     return `${label}: ongeldig bestandstype. Gebruik JPG, PNG, WEBP, HEIC, HEIF of PDF.`
   }
   if (file.size > MAX_FILE_BYTES) {
-    return `${label}: bestand is te groot. Maximaal 12MB per document.`
+    return `${label}: bestand is te groot. Maximaal 4MB per document.`
   }
   return null
 }
@@ -163,7 +163,7 @@ export async function POST(request: Request) {
         "file_validation",
         String(fileErrors[0]),
         400,
-        "Maximaal 12MB per document. Ondersteunde formaten: JPG, PNG, WEBP, HEIC, HEIF, PDF.",
+        "Maximaal 4MB per document. Ondersteunde formaten: JPG, PNG, WEBP, HEIC, HEIF, PDF.",
       )
     }
 
@@ -277,7 +277,7 @@ export async function POST(request: Request) {
       })
       return fail(
         err.step ?? "storage_upload_driver_license",
-        "Upload van rijbewijs mislukt. Controleer of het bestand kleiner is dan 12MB en probeer opnieuw.",
+        "Upload van rijbewijs mislukt. Controleer of het bestand kleiner is dan 4MB en probeer opnieuw.",
         500,
         err.message,
       )
@@ -299,7 +299,7 @@ export async function POST(request: Request) {
       })
       return fail(
         err.step ?? "storage_upload_taxi_pass",
-        "Upload van chauffeurspas mislukt. Controleer of het bestand kleiner is dan 12MB en probeer opnieuw.",
+        "Upload van chauffeurspas mislukt. Controleer of het bestand kleiner is dan 4MB en probeer opnieuw.",
         500,
         err.message,
       )
@@ -326,7 +326,7 @@ export async function POST(request: Request) {
         })
         return fail(
           err.step ?? "storage_upload_identity_document",
-          "Upload van ID document mislukt. Controleer of het bestand kleiner is dan 12MB en probeer opnieuw.",
+          "Upload van ID document mislukt. Controleer of het bestand kleiner is dan 4MB en probeer opnieuw.",
           500,
           err.message,
         )

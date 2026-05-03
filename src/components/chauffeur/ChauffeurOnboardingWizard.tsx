@@ -47,10 +47,95 @@ function stepLabel(step: string | undefined): string {
   return STEP_LABELS[step] ?? step.replace(/_/g, " ")
 }
 
+// --- compression constants ---
+const MAX_DIM = 1600
+const JPEG_QUALITY = 0.72
+const MAX_TOTAL_BYTES = 4 * 1024 * 1024
+const MAX_PDF_BYTES = 4 * 1024 * 1024
+const MAX_IMAGE_BYTES = 1.5 * 1024 * 1024
+
+async function compressImage(file: File): Promise<File> {
+  const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name)
+  // HEIC/HEIF cannot be decoded by canvas in browsers — pass through unchanged
+  const isHeic = /image\/hei[cf]/i.test(file.type) || /\.(heic|heif)$/i.test(file.name)
+  const isImage =
+    file.type.startsWith("image/") || /\.(jpg|jpeg|png|webp)$/i.test(file.name)
+
+  if (isPdf || isHeic || !isImage) return file
+
+  try {
+    const bitmap = await createImageBitmap(file)
+    let { width, height } = bitmap
+
+    if (width > MAX_DIM || height > MAX_DIM) {
+      const ratio = Math.min(MAX_DIM / width, MAX_DIM / height)
+      width = Math.round(width * ratio)
+      height = Math.round(height * ratio)
+    }
+
+    const canvas = document.createElement("canvas")
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext("2d")
+    if (!ctx) {
+      bitmap.close()
+      return file
+    }
+    ctx.drawImage(bitmap, 0, 0, width, height)
+    bitmap.close()
+
+    return new Promise<File>((resolve) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file)
+            return
+          }
+          const baseName = file.name.replace(/\.[^.]+$/, "") || "document"
+          resolve(new File([blob], `${baseName}.jpg`, { type: "image/jpeg" }))
+        },
+        "image/jpeg",
+        JPEG_QUALITY,
+      )
+    })
+  } catch {
+    return file
+  }
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} kB`
+  return `${(bytes / (1024 * 1024)).toLocaleString("nl-NL", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })} MB`
+}
+
+function validatePayload(files: Record<FileKey, File | null>): string | null {
+  let total = 0
+  for (const file of Object.values(files)) {
+    if (!file) continue
+    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name)
+    if (isPdf && file.size > MAX_PDF_BYTES) {
+      return "De documenten zijn samen te groot om te verzenden. Maak een nieuwe foto of kies een kleiner bestand."
+    }
+    if (!isPdf && file.size > MAX_IMAGE_BYTES) {
+      return "De documenten zijn samen te groot om te verzenden. Maak een nieuwe foto of kies een kleiner bestand."
+    }
+    total += file.size
+  }
+  if (total > MAX_TOTAL_BYTES) {
+    return "De documenten zijn samen te groot om te verzenden. Maak een nieuwe foto of kies een kleiner bestand."
+  }
+  return null
+}
+
 function UploadCard({
   label,
   required,
-  fileName,
+  hasFile,
+  processing,
+  sizeBytes,
   onPick,
   onClear,
   inputRef,
@@ -58,13 +143,14 @@ function UploadCard({
 }: {
   label: string
   required?: boolean
-  fileName: string
+  hasFile: boolean
+  processing: boolean
+  sizeBytes: number | null
   onPick: (file: File | null) => void
   onClear: () => void
   inputRef: React.RefObject<HTMLInputElement | null>
   name: FileKey
 }) {
-  const hasFile = Boolean(fileName)
   const actionLabel = hasFile ? "Ander bestand kiezen" : `${label} uploaden`
 
   return (
@@ -80,7 +166,7 @@ function UploadCard({
       <p className="mt-1 text-xs text-[#7F776E]">
         Maak een duidelijke foto of upload een bestand. Zorg dat alle gegevens goed leesbaar zijn.
       </p>
-      <p className="mt-1 text-xs text-[#7F776E]">JPG, PNG, WEBP, HEIC/HEIF, PDF — max 12MB</p>
+      <p className="mt-1 text-xs text-[#7F776E]">JPG, PNG, WEBP, HEIC/HEIF, PDF</p>
 
       {/* No capture attribute — lets the user choose camera OR photo library OR file picker */}
       <input
@@ -97,13 +183,14 @@ function UploadCard({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815]"
+          disabled={processing}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815] disabled:opacity-50"
         >
           <Upload className="h-3.5 w-3.5" />
           {actionLabel}
         </button>
 
-        {fileName ? (
+        {hasFile && !processing ? (
           <button
             type="button"
             onClick={onClear}
@@ -114,8 +201,16 @@ function UploadCard({
         ) : null}
       </div>
 
-      <p className={`mt-2 text-xs ${fileName ? "text-[#22A06B]" : "text-[#7F776E]"}`}>
-        {fileName ? `Geselecteerd: ${fileName}` : "Nog geen bestand geselecteerd"}
+      <p
+        className={`mt-2 text-xs ${processing ? "text-[#D6B58A]" : hasFile ? "text-[#22A06B]" : "text-[#7F776E]"}`}
+      >
+        {processing
+          ? "Document verwerken..."
+          : hasFile && sizeBytes !== null
+            ? `${label} geselecteerd · ${formatBytes(sizeBytes)}`
+            : hasFile
+              ? `${label} geselecteerd`
+              : "Nog geen bestand geselecteerd"}
       </p>
     </div>
   )
@@ -163,6 +258,15 @@ export default function ChauffeurOnboardingWizard({
     identity_document: null,
   })
 
+  // Generation counter per key — lets handleFilePick detect stale results after a clear
+  const processingGenRef = useRef<Record<FileKey, number>>({
+    driver_license: 0,
+    taxi_pass: 0,
+    identity_document: 0,
+  })
+  const [processingKeys, setProcessingKeys] = useState<Set<FileKey>>(new Set())
+  const isProcessing = processingKeys.size > 0
+
   const driverLicenseRef = useRef<HTMLInputElement>(null)
   const taxiPassRef = useRef<HTMLInputElement>(null)
   const identityRef = useRef<HTMLInputElement>(null)
@@ -193,8 +297,41 @@ export default function ChauffeurOnboardingWizard({
     vehicleType,
   ])
 
+  async function handleFilePick(key: FileKey, rawFile: File | null) {
+    if (!rawFile) {
+      setFiles((prev) => ({ ...prev, [key]: null }))
+      return
+    }
+
+    const gen = ++processingGenRef.current[key]
+    setProcessingKeys((prev) => new Set([...prev, key]))
+
+    try {
+      const compressed = await compressImage(rawFile)
+      if (processingGenRef.current[key] !== gen) return
+      setFiles((prev) => ({ ...prev, [key]: compressed }))
+    } catch {
+      if (processingGenRef.current[key] !== gen) return
+      setFiles((prev) => ({ ...prev, [key]: rawFile }))
+    } finally {
+      if (processingGenRef.current[key] === gen) {
+        setProcessingKeys((prev) => {
+          const next = new Set(prev)
+          next.delete(key)
+          return next
+        })
+      }
+    }
+  }
+
   function clearFile(key: FileKey, ref: React.RefObject<HTMLInputElement | null>) {
+    processingGenRef.current[key]++ // invalidate any in-flight compression
     setFiles((prev) => ({ ...prev, [key]: null }))
+    setProcessingKeys((prev) => {
+      const next = new Set(prev)
+      next.delete(key)
+      return next
+    })
     if (ref.current) ref.current.value = ""
   }
 
@@ -218,6 +355,7 @@ export default function ChauffeurOnboardingWizard({
   }
 
   function nextStep() {
+    if (isProcessing) return
     const message = validateStep(step)
     if (message) {
       setLocalError(message)
@@ -247,6 +385,14 @@ export default function ChauffeurOnboardingWizard({
       return
     }
 
+    if (isProcessing) return
+
+    const payloadError = validatePayload(files)
+    if (payloadError) {
+      setLocalError(payloadError)
+      return
+    }
+
     if (isSubmitting) return
 
     setLocalError("")
@@ -271,12 +417,19 @@ export default function ChauffeurOnboardingWizard({
         body: form,
       })
 
-      let json: { success?: boolean; error?: string; message?: string; step?: string; details?: string } = {}
+      let json: {
+        success?: boolean
+        error?: string
+        message?: string
+        step?: string
+        details?: string
+      } = {}
       try {
         json = await res.json()
       } catch {
         setSubmitError({
-          message: "Server reageerde onverwacht. Controleer uw internetverbinding en probeer opnieuw.",
+          message:
+            "Server reageerde onverwacht. Controleer uw internetverbinding en probeer opnieuw.",
           details: `HTTP ${res.status}`,
         })
         setIsSubmitting(false)
@@ -429,26 +582,32 @@ export default function ChauffeurOnboardingWizard({
                 label="Rijbewijs"
                 required
                 name="driver_license"
-                fileName={files.driver_license?.name ?? ""}
+                hasFile={Boolean(files.driver_license)}
+                processing={processingKeys.has("driver_license")}
+                sizeBytes={files.driver_license?.size ?? null}
                 inputRef={driverLicenseRef}
-                onPick={(file) => setFiles((prev) => ({ ...prev, driver_license: file }))}
+                onPick={(file) => handleFilePick("driver_license", file)}
                 onClear={() => clearFile("driver_license", driverLicenseRef)}
               />
               <UploadCard
                 label="Chauffeurspas / taxipas"
                 required
                 name="taxi_pass"
-                fileName={files.taxi_pass?.name ?? ""}
+                hasFile={Boolean(files.taxi_pass)}
+                processing={processingKeys.has("taxi_pass")}
+                sizeBytes={files.taxi_pass?.size ?? null}
                 inputRef={taxiPassRef}
-                onPick={(file) => setFiles((prev) => ({ ...prev, taxi_pass: file }))}
+                onPick={(file) => handleFilePick("taxi_pass", file)}
                 onClear={() => clearFile("taxi_pass", taxiPassRef)}
               />
               <UploadCard
                 label="ID document"
                 name="identity_document"
-                fileName={files.identity_document?.name ?? ""}
+                hasFile={Boolean(files.identity_document)}
+                processing={processingKeys.has("identity_document")}
+                sizeBytes={files.identity_document?.size ?? null}
                 inputRef={identityRef}
-                onPick={(file) => setFiles((prev) => ({ ...prev, identity_document: file }))}
+                onPick={(file) => handleFilePick("identity_document", file)}
                 onClear={() => clearFile("identity_document", identityRef)}
               />
             </div>
@@ -477,9 +636,24 @@ export default function ChauffeurOnboardingWizard({
               </div>
               <div className="rounded-xl border border-[#292520] bg-[#0D0C0B] p-3 text-sm text-[#B7AEA2]">
                 <p className="mb-1 text-xs uppercase tracking-wide text-[#7F776E]">Documenten</p>
-                <p>Rijbewijs: {files.driver_license ? files.driver_license.name : "niet geselecteerd"}</p>
-                <p>Chauffeurspas: {files.taxi_pass ? files.taxi_pass.name : "niet geselecteerd"}</p>
-                <p>ID: {files.identity_document ? files.identity_document.name : "optioneel — niet geselecteerd"}</p>
+                <p>
+                  Rijbewijs:{" "}
+                  {files.driver_license
+                    ? `Rijbewijs geselecteerd · ${formatBytes(files.driver_license.size)}`
+                    : "niet geselecteerd"}
+                </p>
+                <p>
+                  Chauffeurspas:{" "}
+                  {files.taxi_pass
+                    ? `Chauffeurspas geselecteerd · ${formatBytes(files.taxi_pass.size)}`
+                    : "niet geselecteerd"}
+                </p>
+                <p>
+                  ID:{" "}
+                  {files.identity_document
+                    ? `ID document geselecteerd · ${formatBytes(files.identity_document.size)}`
+                    : "optioneel — niet geselecteerd"}
+                </p>
               </div>
               <label className="flex items-start gap-2 rounded-lg border border-[#292520] bg-[#0D0C0B] p-3 text-sm text-[#B7AEA2]">
                 <input
@@ -512,18 +686,22 @@ export default function ChauffeurOnboardingWizard({
               <button
                 type="button"
                 onClick={nextStep}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isProcessing}
                 className="rounded-md border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815] disabled:opacity-40"
               >
-                Volgende
+                {isProcessing ? "Documenten verwerken..." : "Volgende"}
               </button>
             ) : (
               <button
                 type="submit"
-                disabled={isSubmitting || missingFields.length > 0}
+                disabled={isSubmitting || isProcessing || missingFields.length > 0}
                 className="rounded-md border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {isSubmitting ? "Verzenden..." : "Profiel verzenden"}
+                {isSubmitting
+                  ? "Verzenden..."
+                  : isProcessing
+                    ? "Documenten verwerken..."
+                    : "Profiel verzenden"}
               </button>
             )}
           </div>
