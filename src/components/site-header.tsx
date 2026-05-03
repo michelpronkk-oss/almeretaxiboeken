@@ -26,14 +26,13 @@ export function SiteHeader() {
     <header className="fixed inset-x-0 top-0 z-50 border-b border-[#1F1C18] bg-[rgba(8,8,7,0.92)] md:bg-[rgba(8,8,7,0.86)] md:backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2">
-          {/* Icon — always visible (mobile + desktop) */}
+          {/* Icon — mobile: 28px, desktop: 20px. No inline style so Tailwind wins. */}
           <Image
             src="/icon.svg"
             alt="Almere Taxi Boeken"
-            width={32}
-            height={32}
-            className="h-8 w-8 shrink-0"
-            style={{ width: "32px", height: "32px" }}
+            width={28}
+            height={28}
+            className="h-7 w-7 shrink-0 md:h-5 md:w-5"
             unoptimized
             priority
           />

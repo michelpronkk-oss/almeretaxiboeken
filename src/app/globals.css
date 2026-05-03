@@ -240,30 +240,28 @@
   margin-inline-start: 0;
 }
 
-/* Admin internal forms — constrain native date/time inputs without changing visual rendering */
-.admin-date-input {
+/* Admin manual ride form — date/time inputs, no grid wrapper, same visual as selects */
+.admin-manual-date-input {
+  display: block;
   box-sizing: border-box;
-  /* NO overflow:hidden — that changes the visual box and makes the field look different */
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   inline-size: 100%;
   max-inline-size: 100%;
   min-inline-size: 0;
+  color-scheme: dark;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
-.admin-date-input::-webkit-date-and-time-value {
+.admin-manual-date-input::-webkit-date-and-time-value {
   min-inline-size: 0;
   text-align: left;
 }
 
-.admin-date-input::-webkit-calendar-picker-indicator {
+.admin-manual-date-input::-webkit-calendar-picker-indicator {
   flex-shrink: 0;
-}
-
-@media (max-width: 767px) {
-  .admin-date-input {
-    max-width: 100% !important;
-    min-width: 0 !important;
-    width: 100% !important;
-  }
 }
 
 @media (max-width: 767px) {

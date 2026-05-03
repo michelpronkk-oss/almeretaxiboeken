@@ -307,21 +307,20 @@ export default function ManualRideForm() {
               placeholder="Bestemmingsadres"
               inputClassName="h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] placeholder:text-[#8F877D] outline-none focus:border-[#D6B58A]/50 sm:h-10 sm:text-sm"
             />
-            {/* Datum — full-width on mobile, 2-col from md */}
-            <div className="grid w-full min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
-              <input
-                type="date"
-                value={pickupDate}
-                onChange={(e) => setPickupDate(e.target.value)}
-                className="admin-date-input h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] [color-scheme:dark] sm:h-10 sm:text-sm"
-              />
-              <input
-                type="time"
-                value={pickupTime}
-                onChange={(e) => setPickupTime(e.target.value)}
-                className="admin-date-input h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] [color-scheme:dark] sm:h-10 sm:text-sm"
-              />
-            </div>
+            {/* Datum — no wrapper, plain block, same class as selects */}
+            <input
+              type="date"
+              value={pickupDate}
+              onChange={(e) => setPickupDate(e.target.value)}
+              className="admin-manual-date-input h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm"
+            />
+            {/* Tijd — no wrapper, plain block, same class as selects */}
+            <input
+              type="time"
+              value={pickupTime}
+              onChange={(e) => setPickupTime(e.target.value)}
+              className="admin-manual-date-input h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm"
+            />
             {/* Passagiers + voertuig — full-width on mobile, 2-col from md */}
             <div className="grid w-full min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
               <select
