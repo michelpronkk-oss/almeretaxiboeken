@@ -6,24 +6,49 @@ import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 export async function POST(request: NextRequest) {
   const driverId = await getChauffeurSession()
+
+  console.log("[chauffeur-assign] currentDriverId exists:", !!driverId)
+
   if (!driverId) {
-    return Response.json({ success: false, message: "Niet ingelogd." }, { status: 401 })
+    return Response.json(
+      { success: false, code: "NOT_AUTHORIZED", message: "Niet ingelogd als chauffeur." },
+      { status: 401 }
+    )
   }
 
   const supabase = getSupabaseServiceClient()
 
   const { data: currentDriver } = await supabase
     .from("drivers")
-    .select("id, can_dispatch, active, approval_status, deleted_at, full_name, email")
+    .select("id, email, full_name, first_name, last_name, active, approval_status, is_owner, can_dispatch, default_assign, deleted_at")
     .eq("id", driverId)
     .maybeSingle()
 
-  if (!currentDriver || !currentDriver.active || currentDriver.approval_status !== "approved" || currentDriver.deleted_at) {
-    return Response.json({ success: false, message: "Geen toegang." }, { status: 403 })
+  console.log("[chauffeur-assign] currentDriverEmail:", currentDriver?.email ?? "(not found)")
+  console.log("[chauffeur-assign] isOwner:", currentDriver?.is_owner ?? false)
+  console.log("[chauffeur-assign] canDispatch:", currentDriver?.can_dispatch ?? false)
+  console.log("[chauffeur-assign] active:", currentDriver?.active ?? false)
+  console.log("[chauffeur-assign] approvalStatus:", currentDriver?.approval_status ?? "(none)")
+
+  if (
+    !currentDriver ||
+    !currentDriver.active ||
+    currentDriver.approval_status !== "approved" ||
+    currentDriver.deleted_at
+  ) {
+    return Response.json(
+      { success: false, code: "NOT_AUTHORIZED", message: "Chauffeur niet gevonden of niet actief." },
+      { status: 403 }
+    )
   }
 
-  if (!currentDriver.can_dispatch) {
-    return Response.json({ success: false, message: "Geen planningsrechten." }, { status: 403 })
+  const hasDispatchRights = currentDriver.can_dispatch === true || currentDriver.is_owner === true
+
+  if (!hasDispatchRights) {
+    return Response.json(
+      { success: false, code: "NOT_AUTHORIZED", message: "U heeft geen rechten om ritten toe te wijzen." },
+      { status: 403 }
+    )
   }
 
   const body = await request.json()
@@ -31,7 +56,10 @@ export async function POST(request: NextRequest) {
   const targetDriverId = String(body.targetDriverId || "").trim()
 
   if (!bookingId || !targetDriverId) {
-    return Response.json({ success: false, message: "bookingId en targetDriverId zijn verplicht." }, { status: 400 })
+    return Response.json(
+      { success: false, message: "bookingId en targetDriverId zijn verplicht." },
+      { status: 400 }
+    )
   }
 
   const { data: booking } = await supabase
@@ -55,7 +83,7 @@ export async function POST(request: NextRequest) {
 
   const { data: targetDriver } = await supabase
     .from("drivers")
-    .select("id, full_name, email, active, approval_status, deleted_at, default_assign")
+    .select("id, full_name, first_name, last_name, email, active, approval_status, deleted_at, default_assign")
     .eq("id", targetDriverId)
     .maybeSingle()
 
@@ -81,12 +109,24 @@ export async function POST(request: NextRequest) {
     return Response.json({ success: false, message: "Toewijzen mislukt." }, { status: 500 })
   }
 
+  const targetName =
+    [targetDriver.first_name, targetDriver.last_name].filter(Boolean).join(" ") ||
+    targetDriver.full_name ||
+    targetDriver.email ||
+    targetDriverId
+
+  const dispatcherName =
+    [currentDriver.first_name, currentDriver.last_name].filter(Boolean).join(" ") ||
+    currentDriver.full_name ||
+    currentDriver.email ||
+    driverId
+
   await supabase.from("booking_events").insert({
     booking_id: bookingId,
     event_type: "driver_reassigned_by_dispatcher",
     actor_type: "driver",
     actor_id: currentDriver.id,
-    note: `Rit toegewezen aan ${targetDriver.full_name || targetDriver.email || targetDriverId} door planner ${currentDriver.full_name || currentDriver.email || driverId}.`,
+    note: `Rit toegewezen aan ${targetName} door planner ${dispatcherName}.`,
   })
 
   if (targetDriver.email) {
@@ -119,5 +159,5 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return Response.json({ success: true })
+  return Response.json({ success: true, assignedTo: targetName })
 }

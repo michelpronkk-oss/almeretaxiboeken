@@ -55,6 +55,11 @@ type Ride = {
 
 type DriverOption = { id: string; name: string }
 
+function driverDisplayName(d: { full_name?: string | null; first_name?: string | null; last_name?: string | null; email?: string | null }): string {
+  const firstLast = [d.first_name, d.last_name].filter(Boolean).join(" ").trim()
+  return firstLast || d.full_name || d.email || "Onbekend"
+}
+
 export default async function ChauffeurRittenPage() {
   const driver = await getAuthenticatedDriver()
   if (!driver) redirect("/chauffeur/login")
@@ -87,7 +92,7 @@ export default async function ChauffeurRittenPage() {
     isDispatcher
       ? supabase
           .from("drivers")
-          .select("id, full_name, first_name, last_name")
+          .select("id, full_name, first_name, last_name, email")
           .eq("active", true)
           .eq("approval_status", "approved")
           .is("deleted_at", null)
@@ -97,7 +102,7 @@ export default async function ChauffeurRittenPage() {
 
   const driverOptions: DriverOption[] = (allDrivers ?? []).map((d) => ({
     id: d.id,
-    name: [d.first_name, d.last_name].filter(Boolean).join(" ") || d.full_name || d.id,
+    name: driverDisplayName(d),
   }))
 
   const all = rides ?? []
@@ -189,7 +194,7 @@ function RideCard({
   const done = ["completed", "cancelled", "canceled", "deleted"].includes(ride.booking_status ?? "")
   const isOwnRide = ride.assigned_driver_id === currentDriverId
   const assignedDriverName = isDispatcher && ride.assigned_driver_id
-    ? driverOptions.find((d) => d.id === ride.assigned_driver_id)?.name ?? ride.assigned_driver_id
+    ? (driverOptions.find((d) => d.id === ride.assigned_driver_id)?.name ?? "Onbekend")
     : null
 
   return (

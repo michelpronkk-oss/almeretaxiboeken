@@ -20,6 +20,7 @@ export default function DispatcherAssignControl({ bookingId, currentDriverId, dr
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [done, setDone] = useState(false)
+  const [successMsg, setSuccessMsg] = useState("")
 
   const isDifferent = selectedId !== (currentDriverId ?? "")
 
@@ -35,8 +36,14 @@ export default function DispatcherAssignControl({ bookingId, currentDriverId, dr
       })
       const data = await res.json()
       if (!res.ok || !data.success) {
-        setError(data.message || "Toewijzen mislukt.")
+        if (data.code === "NOT_AUTHORIZED") {
+          setError("U heeft geen rechten om ritten toe te wijzen.")
+        } else {
+          setError(data.message || "Toewijzen mislukt.")
+        }
       } else {
+        const selectedName = drivers.find((d) => d.id === selectedId)?.name
+        setSuccessMsg(selectedName ? `Rit toegewezen aan ${selectedName}.` : "Rit toegewezen.")
         setDone(true)
         router.refresh()
       }
@@ -53,7 +60,7 @@ export default function DispatcherAssignControl({ bookingId, currentDriverId, dr
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={selectedId}
-          onChange={(e) => { setSelectedId(e.target.value); setDone(false); setError("") }}
+          onChange={(e) => { setSelectedId(e.target.value); setDone(false); setError(""); setSuccessMsg("") }}
           disabled={loading}
           className="h-8 flex-1 min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-2 text-xs text-[#F5F1E8] focus:outline-none disabled:opacity-50"
         >
@@ -75,7 +82,7 @@ export default function DispatcherAssignControl({ bookingId, currentDriverId, dr
         </button>
       </div>
       {done && (
-        <p className="text-[11px] font-medium text-[#22A06B]">Toegewezen ✓</p>
+        <p className="text-[11px] font-medium text-[#22A06B]">{successMsg || "Toegewezen ✓"}</p>
       )}
       {error && (
         <p className="text-[11px] text-[#ffb4b4]">{error}</p>

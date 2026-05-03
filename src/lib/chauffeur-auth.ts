@@ -5,11 +5,12 @@ export const CHAUFFEUR_SESSION_COOKIE = "chauffeur_session"
 
 export async function setChauffeurSession(driverId: string) {
   const store = await cookies()
+  // path "/" so the cookie is included in API route requests (/api/chauffeur/...)
   store.set(CHAUFFEUR_SESSION_COOKIE, driverId, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/chauffeur",
+    path: "/",
     maxAge: 60 * 60 * 24 * 7,
   })
 }
