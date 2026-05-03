@@ -148,10 +148,21 @@ export default async function AdminDriverDetailPage({
 
   if (!driver) notFound()
 
-  async function signed(path: string | null) {
+  async function signed(path: string | null): Promise<string | null | "error"> {
     if (!path) return null
-    const { data } = await supabase.storage.from("driver-documents").createSignedUrl(path, 60 * 10)
-    return data?.signedUrl || null
+    try {
+      const { data, error } = await supabase.storage
+        .from("driver-documents")
+        .createSignedUrl(path, 60 * 10)
+      if (error) {
+        console.error("[admin-driver-detail] signed url failed", { path, error: error.message })
+        return "error"
+      }
+      return data?.signedUrl ?? "error"
+    } catch (err) {
+      console.error("[admin-driver-detail] signed url threw", { path, error: err })
+      return "error"
+    }
   }
 
   const [driverLicenseUrl, taxiPassUrl, identityUrl] = await Promise.all([
@@ -205,9 +216,36 @@ export default async function AdminDriverDetailPage({
         <article className="rounded-2xl border border-[#292520] bg-[#141210] p-5">
           <h2 className="text-lg font-semibold">Documenten</h2>
           <div className="mt-3 space-y-2 text-sm">
-            <p className="text-[#B7AEA2]">Rijbewijs: {driverLicenseUrl ? <a className="text-[#D6B58A] hover:text-[#E4C69E]" href={driverLicenseUrl} target="_blank" rel="noreferrer">Bekijken</a> : "Niet geupload"}</p>
-            <p className="text-[#B7AEA2]">Chauffeurspas: {taxiPassUrl ? <a className="text-[#D6B58A] hover:text-[#E4C69E]" href={taxiPassUrl} target="_blank" rel="noreferrer">Bekijken</a> : "Niet geupload"}</p>
-            <p className="text-[#B7AEA2]">ID document: {identityUrl ? <a className="text-[#D6B58A] hover:text-[#E4C69E]" href={identityUrl} target="_blank" rel="noreferrer">Bekijken</a> : "Niet geupload"}</p>
+            <p className="text-[#B7AEA2]">
+              Rijbewijs:{" "}
+              {driverLicenseUrl === "error" ? (
+                <span className="text-[#D94A4A]/80">Document kon niet worden geladen</span>
+              ) : driverLicenseUrl ? (
+                <a className="text-[#D6B58A] hover:text-[#E4C69E]" href={driverLicenseUrl} target="_blank" rel="noreferrer">Bekijken</a>
+              ) : (
+                "Document ontbreekt"
+              )}
+            </p>
+            <p className="text-[#B7AEA2]">
+              Chauffeurspas:{" "}
+              {taxiPassUrl === "error" ? (
+                <span className="text-[#D94A4A]/80">Document kon niet worden geladen</span>
+              ) : taxiPassUrl ? (
+                <a className="text-[#D6B58A] hover:text-[#E4C69E]" href={taxiPassUrl} target="_blank" rel="noreferrer">Bekijken</a>
+              ) : (
+                "Document ontbreekt"
+              )}
+            </p>
+            <p className="text-[#B7AEA2]">
+              ID document:{" "}
+              {identityUrl === "error" ? (
+                <span className="text-[#D94A4A]/80">Document kon niet worden geladen</span>
+              ) : identityUrl ? (
+                <a className="text-[#D6B58A] hover:text-[#E4C69E]" href={identityUrl} target="_blank" rel="noreferrer">Bekijken</a>
+              ) : (
+                "Niet geupload"
+              )}
+            </p>
           </div>
         </article>
       </div>
