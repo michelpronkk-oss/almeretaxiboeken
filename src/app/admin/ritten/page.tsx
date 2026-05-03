@@ -120,6 +120,8 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
               <p className="text-xs text-[#8F877D]">{booking.payment_status} / {booking.booking_status}</p>
               {booking.payment_method === "cash" ? (
                 <span className="rounded-full border border-[#22A06B]/30 bg-[#22A06B]/10 px-2 py-0.5 text-[10px] font-medium text-[#22A06B]">Contant</span>
+              ) : booking.payment_method === "manual" ? (
+                <span className="rounded-full border border-[#8F877D]/30 bg-[#8F877D]/10 px-2 py-0.5 text-[10px] text-[#8F877D]">Zonder betaling</span>
               ) : (
                 <span className="rounded-full border border-[#292520] bg-[#0D0C0B] px-2 py-0.5 text-[10px] text-[#B7AEA2]">Online</span>
               )}
@@ -204,6 +206,8 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
                   <div className="mt-1 flex flex-wrap gap-1">
                     {booking.payment_method === "cash" ? (
                       <span className="rounded-full border border-[#22A06B]/30 bg-[#22A06B]/10 px-2 py-0.5 text-[10px] font-medium text-[#22A06B]">Contant</span>
+                    ) : booking.payment_method === "manual" ? (
+                      <span className="rounded-full border border-[#8F877D]/30 bg-[#8F877D]/10 px-2 py-0.5 text-[10px] text-[#8F877D]">Zonder betaling</span>
                     ) : (
                       <span className="rounded-full border border-[#292520] bg-[#0D0C0B] px-2 py-0.5 text-[10px] text-[#B7AEA2]">Online</span>
                     )}

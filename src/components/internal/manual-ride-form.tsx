@@ -21,12 +21,15 @@ type LocationValue = {
   placeId?: string
 }
 
+type PaymentMode = "online" | "cash" | "manual_no_payment"
+
 type CreateResponse = {
   success: boolean
-  mode?: "saved_without_payment" | "payment_link_created"
+  mode?: "payment_link_created" | "cash" | "manual_no_payment"
   bookingId?: string
   reference?: string
   paymentUrl?: string
+  cashAmountDue?: number
   fare?: FareResult
   emailSent?: boolean
   warning?: string
@@ -44,6 +47,12 @@ const OVERRIDE_REASONS = [
   "Anders",
 ]
 
+const PAYMENT_OPTIONS: { mode: PaymentMode; label: string; desc: string }[] = [
+  { mode: "online", label: "Online betaallink", desc: "Maak een Mollie-betaallink en verstuur deze naar de klant." },
+  { mode: "cash", label: "Contant bij chauffeur", desc: "Rit wordt ingepland. Chauffeur int het bedrag contant." },
+  { mode: "manual_no_payment", label: "Zonder betaling", desc: "Alleen gebruiken als interne uitzondering." },
+]
+
 export default function ManualRideForm() {
   const [customerName, setCustomerName] = useState("")
   const [customerEmail, setCustomerEmail] = useState("")
@@ -58,8 +67,8 @@ export default function ManualRideForm() {
   const [vehicleType, setVehicleType] = useState<"taxi" | "taxibus">("taxi")
   const [adminVehicleOverride, setAdminVehicleOverride] = useState(false)
   const [notes, setNotes] = useState("")
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>("online")
   const [sendEmailToCustomer, setSendEmailToCustomer] = useState(true)
-  const [saveWithoutPayment, setSaveWithoutPayment] = useState(false)
 
   // Price override
   const [overrideEnabled, setOverrideEnabled] = useState(false)
@@ -77,7 +86,6 @@ export default function ManualRideForm() {
   const [fare, setFare] = useState<FareResult | null>(null)
   const [result, setResult] = useState<CreateResponse | null>(null)
 
-  // Auto-suggest vehicle type from passengers unless admin has manually overridden
   useEffect(() => {
     if (!adminVehicleOverride) {
       setVehicleType(passengers >= 5 ? "taxibus" : "taxi")
@@ -101,6 +109,10 @@ export default function ManualRideForm() {
     if (!result?.paymentUrl) return ""
     return `Beste ${customerName || "klant"}, hierbij de betaallink voor uw rit met AlmereTaxiBoeken. Na betaling is uw rit definitief gereserveerd: ${result.paymentUrl}`
   }, [result?.paymentUrl, customerName])
+
+  const submitLabel = creating
+    ? paymentMode === "online" ? "Betaallink aanmaken..." : paymentMode === "cash" ? "Contante rit aanmaken..." : "Rit opslaan..."
+    : paymentMode === "online" ? "Betaallink aanmaken" : paymentMode === "cash" ? "Contante rit aanmaken" : "Rit opslaan"
 
   async function calculatePrice() {
     setError("")
@@ -147,7 +159,7 @@ export default function ManualRideForm() {
     }
   }
 
-  async function createBookingAndPayment() {
+  async function createBooking() {
     setError("")
     setStatus("")
     setWarning("")
@@ -160,7 +172,7 @@ export default function ManualRideForm() {
       setError("Bereken eerst de prijs.")
       return
     }
-    if (!saveWithoutPayment && sendEmailToCustomer && !customerEmail.trim()) {
+    if (paymentMode === "online" && sendEmailToCustomer && !customerEmail.trim()) {
       setError("E-mailadres is verplicht als u de betaallink per e-mail wilt versturen.")
       return
     }
@@ -192,8 +204,8 @@ export default function ManualRideForm() {
           vehicleType,
           adminVehicleOverride,
           notes,
-          sendEmail: !saveWithoutPayment && sendEmailToCustomer,
-          saveWithoutPayment,
+          paymentMode,
+          sendEmail: paymentMode !== "manual_no_payment" && sendEmailToCustomer,
           priceOverrideEnabled: overrideEnabled,
           priceOverrideAmount: overrideEnabled ? Number(overrideAmount) : undefined,
           priceOverrideReason: overrideEnabled ? overrideReason : undefined,
@@ -204,7 +216,11 @@ export default function ManualRideForm() {
       if (!res.ok || !data.success) throw new Error(data.message || "Aanmaken mislukt.")
 
       setResult(data)
-      setStatus(data.mode === "saved_without_payment" ? "Rit opgeslagen zonder betaling." : "Betaallink aangemaakt.")
+      const statusMsg =
+        data.mode === "cash" ? "Contante rit aangemaakt."
+        : data.mode === "manual_no_payment" ? "Rit opgeslagen zonder betaling."
+        : "Betaallink aangemaakt."
+      setStatus(statusMsg)
       if (data.warning) setWarning(data.warning)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Aanmaken mislukt.")
@@ -248,7 +264,7 @@ export default function ManualRideForm() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-[#F5F1E8]">Nieuwe rit invoeren</h1>
-          <p className="mt-2 text-sm text-[#B7AEA2]">Maak handmatig een rit aan en verstuur een betaallink naar de klant.</p>
+          <p className="mt-2 text-sm text-[#B7AEA2]">Maak handmatig een rit aan voor een klant.</p>
         </div>
         <Link href="/admin/ritten" className="rounded-lg border border-[#3A2D1F] px-3 py-2 text-xs font-semibold text-[#D6B58A] hover:bg-[#1B1815]">
           Terug naar ritten
@@ -260,6 +276,7 @@ export default function ManualRideForm() {
       {error ? <p className="rounded-md border border-[#D94A4A]/30 bg-[#D94A4A]/10 px-3 py-2 text-xs text-[#ffb4b4]">{error}</p> : null}
 
       <div className="grid gap-4 xl:grid-cols-2">
+        {/* 1. Klantgegevens */}
         <article className="rounded-2xl border border-[#292520] bg-[#141210] p-4">
           <h2 className="text-sm font-semibold text-[#F5F1E8]">1. Klantgegevens</h2>
           <div className="mt-3 space-y-3">
@@ -269,6 +286,7 @@ export default function ManualRideForm() {
           </div>
         </article>
 
+        {/* 2. Ritgegevens */}
         <article className="rounded-2xl border border-[#292520] bg-[#141210] p-4">
           <h2 className="text-sm font-semibold text-[#F5F1E8]">2. Ritgegevens</h2>
           <div className="mt-3 space-y-3">
@@ -300,24 +318,20 @@ export default function ManualRideForm() {
               </select>
               <select
                 value={vehicleType}
-                onChange={(e) => {
-                  setVehicleType(e.target.value as "taxi" | "taxibus")
-                  setAdminVehicleOverride(true)
-                }}
+                onChange={(e) => { setVehicleType(e.target.value as "taxi" | "taxibus"); setAdminVehicleOverride(true) }}
                 className="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#D6B58A]"
               >
                 <option value="taxi">Taxi</option>
                 <option value="taxibus">Taxibus</option>
               </select>
             </div>
-            {vehicleWarning ? (
-              <p className="text-xs text-[#D6B58A]">{vehicleWarning}</p>
-            ) : null}
+            {vehicleWarning ? <p className="text-xs text-[#D6B58A]">{vehicleWarning}</p> : null}
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opmerkingen (optioneel)" className="min-h-20 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 py-2 text-sm text-[#F5F1E8]" />
           </div>
         </article>
       </div>
 
+      {/* 3. Prijsberekening */}
       <article className="rounded-2xl border border-[#292520] bg-[#141210] p-4">
         <h2 className="text-sm font-semibold text-[#F5F1E8]">3. Prijsberekening</h2>
         <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -340,21 +354,14 @@ export default function ManualRideForm() {
             {fare.pricingMode === "fixed_route" && fare.matchedFixedRoute ? (
               <p className="text-xs text-[#D6B58A]">
                 Vaste routeprijs toegepast: {fare.matchedFixedRoute}
-                {fare.calculatedFare && fare.calculatedFare !== fare.estimatedFare
-                  ? ` (berekend: ${formatCurrencyEUR(fare.calculatedFare)})`
-                  : ""}
+                {fare.calculatedFare && fare.calculatedFare !== fare.estimatedFare ? ` (berekend: ${formatCurrencyEUR(fare.calculatedFare)})` : ""}
               </p>
             ) : null}
 
             {/* Price override */}
             <div className="rounded-xl border border-[#292520] bg-[#0D0C0B] p-4 space-y-3">
               <label className="flex items-center gap-2 text-sm text-[#B7AEA2]">
-                <input
-                  type="checkbox"
-                  checked={overrideEnabled}
-                  onChange={(e) => setOverrideEnabled(e.target.checked)}
-                  className="size-4"
-                />
+                <input type="checkbox" checked={overrideEnabled} onChange={(e) => setOverrideEnabled(e.target.checked)} className="size-4" />
                 Prijs handmatig aanpassen
               </label>
               {overrideEnabled ? (
@@ -362,27 +369,16 @@ export default function ManualRideForm() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-[#B7AEA2]">€</span>
                     <input
-                      type="number"
-                      min="1"
-                      step="0.01"
-                      value={overrideAmount}
-                      onChange={(e) => setOverrideAmount(e.target.value)}
+                      type="number" min="1" step="0.01"
+                      value={overrideAmount} onChange={(e) => setOverrideAmount(e.target.value)}
                       placeholder="Eindprijs"
                       className="h-10 w-36 rounded-lg border border-[#292520] bg-[#141210] px-3 text-sm text-[#F5F1E8]"
                     />
-                    {Number(overrideAmount) > 0 ? (
-                      <span className="text-sm font-semibold text-[#D6B58A]">{formatCurrencyEUR(Number(overrideAmount))}</span>
-                    ) : null}
+                    {Number(overrideAmount) > 0 ? <span className="text-sm font-semibold text-[#D6B58A]">{formatCurrencyEUR(Number(overrideAmount))}</span> : null}
                   </div>
-                  <select
-                    value={overrideReason}
-                    onChange={(e) => setOverrideReason(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-[#292520] bg-[#141210] px-3 text-sm text-[#F5F1E8]"
-                  >
+                  <select value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} className="h-10 w-full rounded-lg border border-[#292520] bg-[#141210] px-3 text-sm text-[#F5F1E8]">
                     <option value="">Selecteer reden prijsaanpassing</option>
-                    {OVERRIDE_REASONS.map((r) => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
+                    {OVERRIDE_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
               ) : null}
@@ -390,7 +386,7 @@ export default function ManualRideForm() {
 
             {displayedFare !== null && overrideEnabled && Number(overrideAmount) > 0 ? (
               <p className="text-sm text-[#B7AEA2]">
-                Eindprijs (Mollie): <span className="font-semibold text-[#D6B58A]">{formatCurrencyEUR(displayedFare)}</span>
+                Eindprijs: <span className="font-semibold text-[#D6B58A]">{formatCurrencyEUR(displayedFare)}</span>
                 {overrideReason ? <span className="ml-2 text-xs text-[#8F877D]">— {overrideReason}</span> : null}
               </p>
             ) : null}
@@ -398,33 +394,70 @@ export default function ManualRideForm() {
         ) : null}
       </article>
 
+      {/* 4. Betaling */}
       <article className="rounded-2xl border border-[#292520] bg-[#141210] p-4">
         <h2 className="text-sm font-semibold text-[#F5F1E8]">4. Betaling</h2>
-        <div className="mt-3 space-y-2 text-sm text-[#B7AEA2]">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={sendEmailToCustomer} onChange={(e) => setSendEmailToCustomer(e.target.checked)} className="size-4" disabled={saveWithoutPayment} />
-            Betaallink direct per e-mail versturen
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={saveWithoutPayment} onChange={(e) => setSaveWithoutPayment(e.target.checked)} className="size-4" />
-            Opslaan zonder betaling (interne uitzondering)
-          </label>
+
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          {PAYMENT_OPTIONS.map((opt) => {
+            const active = paymentMode === opt.mode
+            return (
+              <button
+                key={opt.mode}
+                type="button"
+                onClick={() => setPaymentMode(opt.mode)}
+                className={`rounded-xl border p-3 text-left transition-colors ${
+                  active
+                    ? "border-[#D6B58A]/50 bg-[#D6B58A]/[0.08]"
+                    : "border-[#292520] bg-[#0D0C0B] hover:bg-[#141210]"
+                }`}
+              >
+                <p className={`text-sm font-semibold ${active ? "text-[#D6B58A]" : "text-[#B7AEA2]"}`}>{opt.label}</p>
+                <p className="mt-0.5 text-[11px] text-[#8F877D] leading-snug">{opt.desc}</p>
+              </button>
+            )
+          })}
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button type="button" onClick={createBookingAndPayment} disabled={creating || !fare} className="rounded-lg border border-[#3A2D1F] px-4 py-2 text-xs font-semibold text-[#D6B58A] hover:bg-[#1B1815] disabled:opacity-50">
-            {creating
-              ? saveWithoutPayment ? "Opslaan..." : "Betaallink aanmaken..."
-              : saveWithoutPayment ? "Opslaan zonder betaling" : "Betaallink aanmaken"}
+        {/* Email option — shown for online and cash */}
+        {paymentMode !== "manual_no_payment" ? (
+          <label className="mt-4 flex items-center gap-2 text-sm text-[#B7AEA2]">
+            <input type="checkbox" checked={sendEmailToCustomer} onChange={(e) => setSendEmailToCustomer(e.target.checked)} className="size-4" />
+            {paymentMode === "online" ? "Betaallink direct per e-mail versturen" : "Bevestigingsmail naar klant versturen"}
+          </label>
+        ) : null}
+
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={createBooking}
+            disabled={creating || !fare}
+            className="rounded-lg border border-[#3A2D1F] px-4 py-2 text-xs font-semibold text-[#D6B58A] hover:bg-[#1B1815] disabled:opacity-50"
+          >
+            {submitLabel}
           </button>
         </div>
       </article>
 
+      {/* Result */}
       {result?.success ? (
         <article className="rounded-2xl border border-[#22A06B]/30 bg-[#22A06B]/10 p-4">
-          <h3 className="text-sm font-semibold text-[#d9ffef]">{result.mode === "saved_without_payment" ? "Rit opgeslagen" : "Betaallink aangemaakt"}</h3>
+          <h3 className="text-sm font-semibold text-[#d9ffef]">
+            {result.mode === "cash" ? "Contante rit aangemaakt"
+              : result.mode === "manual_no_payment" ? "Rit opgeslagen"
+              : "Betaallink aangemaakt"}
+          </h3>
           <div className="mt-3 space-y-2 text-sm text-[#B7AEA2]">
             <p>Referentie: <span className="text-[#F5F1E8]">{result.reference}</span></p>
+
+            {result.mode === "cash" && result.cashAmountDue ? (
+              <p>Te innen door chauffeur: <span className="font-semibold text-[#22A06B]">{formatCurrencyEUR(result.cashAmountDue)}</span></p>
+            ) : null}
+
+            {result.mode === "manual_no_payment" ? (
+              <p className="text-xs text-[#8F877D]">Opgeslagen als interne uitzondering — geen betaling vereist.</p>
+            ) : null}
+
             {result.paymentUrl ? (
               <>
                 <p className="break-all">Betaallink: <span className="text-[#F5F1E8]">{result.paymentUrl}</span></p>

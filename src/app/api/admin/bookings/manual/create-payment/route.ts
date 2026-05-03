@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { isAdminAuthenticated } from "@/lib/admin-auth"
 import { sendEmail } from "@/lib/email/send"
-import { manualPaymentLinkEmail } from "@/lib/email/templates"
+import { manualPaymentLinkEmail, cashBookingRequestEmail } from "@/lib/email/templates"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 import { computeRouteFare } from "@/lib/taxi/pricing"
 import { matchFixedRoute } from "@/lib/taxi/fixed-routes"
@@ -20,8 +20,8 @@ interface CreatePaymentBody {
   vehicleType?: "taxi" | "taxibus"
   adminVehicleOverride?: boolean
   notes?: string
+  paymentMode?: "online" | "cash" | "manual_no_payment"
   sendEmail?: boolean
-  saveWithoutPayment?: boolean
   priceOverrideEnabled?: boolean
   priceOverrideAmount?: number
   priceOverrideReason?: string
@@ -68,7 +68,10 @@ export async function POST(request: NextRequest) {
   const passengers = Math.max(1, Math.min(8, Number(body.passengers || 1)))
   const vehicleType = body.vehicleType
   const adminVehicleOverride = Boolean(body.adminVehicleOverride)
-  const saveWithoutPayment = Boolean(body.saveWithoutPayment)
+  const paymentMode: "online" | "cash" | "manual_no_payment" =
+    body.paymentMode === "cash" ? "cash"
+    : body.paymentMode === "manual_no_payment" ? "manual_no_payment"
+    : "online"
   const wantsEmail = Boolean(body.sendEmail)
   const priceOverrideEnabled = Boolean(body.priceOverrideEnabled)
   const priceOverrideAmount = priceOverrideEnabled ? Number(body.priceOverrideAmount || 0) : 0
@@ -77,7 +80,7 @@ export async function POST(request: NextRequest) {
   if (!customerName || !customerPhone || !pickup || !destination || !pickupDate || !pickupTime) {
     return Response.json({ success: false, message: "Vul alle verplichte velden in." }, { status: 400 })
   }
-  if (wantsEmail && !customerEmail) {
+  if (paymentMode === "online" && wantsEmail && !customerEmail) {
     return Response.json({ success: false, message: "E-mailadres is verplicht om een betaallink te mailen." }, { status: 400 })
   }
   if (priceOverrideEnabled && priceOverrideAmount <= 0) {
@@ -103,59 +106,170 @@ export async function POST(request: NextRequest) {
   // Fixed route matching
   const fixedMatch = matchFixedRoute(pickupAddressForStorage, destinationAddressForStorage)
   const fixedFare = fixedMatch
-    ? fare.vehicleType === "taxibus"
-      ? fixedMatch.taxibusPrice
-      : fixedMatch.taxiPrice
+    ? fare.vehicleType === "taxibus" ? fixedMatch.taxibusPrice : fixedMatch.taxiPrice
     : null
 
   const meteredFare = fare.estimatedFare
   const routeFare = fixedFare ?? meteredFare
-
-  // Final fare: manual override wins, then fixed route, then metered
   const finalFare = priceOverrideEnabled ? priceOverrideAmount : routeFare
 
   const pricingMode = priceOverrideEnabled
     ? "manual_override"
-    : fixedMatch
-      ? "fixed_route"
-      : "metered"
+    : fixedMatch ? "fixed_route" : "metered"
 
   const supabase = getSupabaseServiceClient()
   const bookingRef = generateRef()
 
+  // ── Shared audit fields ──────────────────────────────────────────────────────
+  const pricingFields = {
+    pricing_mode: pricingMode,
+    calculated_fare: meteredFare,
+    fixed_route_fare: fixedFare ?? null,
+    final_fare: finalFare,
+    matched_fixed_route: fixedMatch?.routeLabel ?? null,
+    price_override_enabled: priceOverrideEnabled,
+    price_override_reason: priceOverrideReason || null,
+    admin_vehicle_override: adminVehicleOverride,
+  }
+
+  const baseFields = {
+    reference: bookingRef,
+    customer_name: customerName,
+    customer_email: customerEmail || null,
+    customer_phone: customerPhone,
+    pickup_address: pickupAddressForStorage,
+    destination_address: destinationAddressForStorage,
+    pickup_date: pickupDate,
+    pickup_time: pickupTime,
+    passengers: fare.passengers,
+    vehicle_type: fare.vehicleType,
+    distance_km: fare.distanceKm,
+    duration_minutes: fare.durationMinutes,
+    estimated_fare: finalFare,
+    currency: fare.currency,
+    notes: notes || null,
+    source: "admin_manual",
+    created_by: "admin",
+    manual_created: true,
+    price_calculated_at: new Date().toISOString(),
+    ...pricingFields,
+  }
+
+  const noteBase = [
+    "Handmatige rit aangemaakt via admin.",
+    `Prijsmodus: ${pricingMode}.`,
+    fixedMatch ? `Vaste route: ${fixedMatch.routeLabel}.` : null,
+    priceOverrideEnabled ? `Prijsoverschrijving: ${priceOverrideReason}.` : null,
+  ].filter(Boolean).join(" ")
+
+  // ── A. Cash payment ──────────────────────────────────────────────────────────
+  if (paymentMode === "cash") {
+    const { data: booking, error: insertError } = await supabase
+      .from("bookings")
+      .insert({
+        ...baseFields,
+        payment_method: "cash",
+        payment_status: "cash_pending",
+        booking_status: "unassigned",
+        cash_amount_due: finalFare,
+        cash_collection_status: "pending",
+      })
+      .select("id, reference")
+      .single()
+
+    if (insertError || !booking) {
+      return Response.json({ success: false, message: "Rit kon niet worden opgeslagen." }, { status: 500 })
+    }
+
+    await supabase.from("booking_events").insert({
+      booking_id: booking.id,
+      event_type: "manual_cash_booking_created",
+      actor_type: "admin",
+      note: `${noteBase} Betaalmethode: contant. Te innen: €${finalFare.toFixed(2)}.`,
+    })
+
+    let emailSent = false
+    if (wantsEmail && customerEmail) {
+      const tmpl = cashBookingRequestEmail({
+        reference: booking.reference,
+        date: pickupDate,
+        time: pickupTime,
+        origin: pickupAddressForStorage,
+        destination: destinationAddressForStorage,
+        passengers: fare.passengers,
+        vehicleType: fare.vehicleType,
+        price: finalFare,
+        customerName,
+      })
+      const sendResult = await sendEmail({ to: customerEmail, subject: tmpl.subject, html: tmpl.html, text: tmpl.text })
+      if (sendResult.sent) {
+        emailSent = true
+        await supabase.from("booking_events").insert({
+          booking_id: booking.id,
+          event_type: "cash_booking_email_sent",
+          actor_type: "system",
+          note: `Bevestigingsmail verstuurd naar ${customerEmail}`,
+        })
+      }
+    }
+
+    return Response.json({
+      success: true,
+      mode: "cash",
+      bookingId: booking.id,
+      reference: booking.reference,
+      cashAmountDue: finalFare,
+      emailSent,
+    })
+  }
+
+  // ── B. No payment ────────────────────────────────────────────────────────────
+  if (paymentMode === "manual_no_payment") {
+    const { data: booking, error: insertError } = await supabase
+      .from("bookings")
+      .insert({
+        ...baseFields,
+        payment_method: "manual",
+        payment_status: "not_required",
+        booking_status: "unassigned",
+        cash_collection_status: "not_applicable",
+      })
+      .select("id, reference")
+      .single()
+
+    if (insertError || !booking) {
+      return Response.json({ success: false, message: "Rit kon niet worden opgeslagen." }, { status: 500 })
+    }
+
+    await supabase.from("booking_events").insert({
+      booking_id: booking.id,
+      event_type: "manual_booking_without_payment",
+      actor_type: "admin",
+      note: `${noteBase} Opgeslagen zonder betaling (interne uitzondering).`,
+    })
+
+    return Response.json({
+      success: true,
+      mode: "manual_no_payment",
+      bookingId: booking.id,
+      reference: booking.reference,
+    })
+  }
+
+  // ── C. Online payment (Mollie) ───────────────────────────────────────────────
+  const mollieApiKey = process.env.MOLLIE_API_KEY
+  if (!mollieApiKey) {
+    return Response.json({ success: false, message: "MOLLIE_API_KEY ontbreekt." }, { status: 503 })
+  }
+
   const { data: booking, error: insertError } = await supabase
     .from("bookings")
     .insert({
-      reference: bookingRef,
-      customer_name: customerName,
-      customer_email: customerEmail || null,
-      customer_phone: customerPhone,
-      pickup_address: pickupAddressForStorage,
-      destination_address: destinationAddressForStorage,
-      pickup_date: pickupDate,
-      pickup_time: pickupTime,
-      passengers: fare.passengers,
-      vehicle_type: fare.vehicleType,
-      distance_km: fare.distanceKm,
-      duration_minutes: fare.durationMinutes,
-      estimated_fare: finalFare,
-      currency: fare.currency,
+      ...baseFields,
+      payment_method: "online",
       payment_status: "pending_payment",
       booking_status: "pending_payment",
-      notes: notes || null,
-      source: "admin_manual",
-      created_by: "admin",
-      manual_created: true,
-      price_calculated_at: new Date().toISOString(),
-      // Pricing audit columns
-      pricing_mode: pricingMode,
-      calculated_fare: meteredFare,
-      fixed_route_fare: fixedFare ?? null,
-      final_fare: finalFare,
-      matched_fixed_route: fixedMatch?.routeLabel ?? null,
-      price_override_enabled: priceOverrideEnabled,
-      price_override_reason: priceOverrideReason || null,
-      admin_vehicle_override: adminVehicleOverride,
+      cash_collection_status: "not_applicable",
     })
     .select("id, reference")
     .single()
@@ -164,34 +278,12 @@ export async function POST(request: NextRequest) {
     return Response.json({ success: false, message: "Rit kon niet worden opgeslagen." }, { status: 500 })
   }
 
-  const noteparts = [
-    `Handmatige rit aangemaakt via admin.`,
-    `Prijsmodus: ${pricingMode}.`,
-    fixedMatch ? `Vaste route: ${fixedMatch.routeLabel}.` : null,
-    priceOverrideEnabled ? `Prijsoverschrijving: ${priceOverrideReason}.` : null,
-  ].filter(Boolean).join(" ")
-
   await supabase.from("booking_events").insert({
     booking_id: booking.id,
     event_type: "manual_booking_created",
     actor_type: "admin",
-    note: noteparts,
+    note: noteBase,
   })
-
-  if (saveWithoutPayment) {
-    return Response.json({
-      success: true,
-      mode: "saved_without_payment",
-      bookingId: booking.id,
-      reference: booking.reference,
-      fare: { ...fare, estimatedFare: finalFare, pricingMode, matchedFixedRoute: fixedMatch?.routeLabel },
-    })
-  }
-
-  const mollieApiKey = process.env.MOLLIE_API_KEY
-  if (!mollieApiKey) {
-    return Response.json({ success: false, message: "MOLLIE_API_KEY ontbreekt." }, { status: 503 })
-  }
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://almeretaxiboeken.nl").replace(/\/$/, "")
   const webhookUrl = process.env.MOLLIE_WEBHOOK_URL || `${siteUrl}/api/mollie/webhook`
@@ -201,15 +293,9 @@ export async function POST(request: NextRequest) {
 
   const mollieRes = await fetch("https://api.mollie.com/v2/payments", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${mollieApiKey}`,
-    },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${mollieApiKey}` },
     body: JSON.stringify({
-      amount: {
-        currency: fare.currency,
-        value: Number(finalFare).toFixed(2),
-      },
+      amount: { currency: fare.currency, value: Number(finalFare).toFixed(2) },
       description: `AlmereTaxiBoeken rit ${booking.reference}`,
       redirectUrl: redirectUrl.toString(),
       webhookUrl,
@@ -237,9 +323,7 @@ export async function POST(request: NextRequest) {
     try {
       const err = await mollieRes.json()
       providerMessage = err?.detail || err?.title || providerMessage
-    } catch {
-      // no-op
-    }
+    } catch { /* no-op */ }
     return Response.json({ success: false, message: providerMessage }, { status: 502 })
   }
 
@@ -262,7 +346,7 @@ export async function POST(request: NextRequest) {
 
   await supabase.from("booking_events").insert({
     booking_id: booking.id,
-    event_type: "payment_link_created",
+    event_type: "manual_payment_link_created",
     actor_type: "admin",
     note: `Mollie payment id: ${paymentId}. Eindprijs: €${finalFare.toFixed(2)}.`,
   })
