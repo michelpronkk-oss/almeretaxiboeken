@@ -21,16 +21,15 @@ export async function getAuthenticatedDriverId() {
   if (!driverId) return ""
 
   const supabase = getSupabaseServiceClient()
-  const { data: driver } = await supabase
+  const { data: driver, error } = await supabase
     .from("drivers")
     .select("id, active, approval_status")
     .eq("id", driverId)
     .maybeSingle()
 
-  if (!driver || !driver.active || driver.approval_status !== "approved") {
-    await clearChauffeurSession()
-    return ""
-  }
+  // Do not call clearChauffeurSession here: a transient DB error would destroy a valid session.
+  // Session cleanup is done only on explicit logout.
+  if (error || !driver || !driver.active || driver.approval_status !== "approved") return ""
 
   return driver.id
 }
@@ -52,16 +51,14 @@ export async function getAuthenticatedDriver(): Promise<AuthenticatedDriver | nu
   if (!driverId) return null
 
   const supabase = getSupabaseServiceClient()
-  const { data: driver } = await supabase
+  const { data: driver, error } = await supabase
     .from("drivers")
     .select("id, first_name, last_name, full_name, email, vehicle_type, active, approval_status, is_owner, can_dispatch, default_assign")
     .eq("id", driverId)
     .maybeSingle()
 
-  if (!driver || !driver.active || driver.approval_status !== "approved") {
-    await clearChauffeurSession()
-    return null
-  }
+  // Do not call clearChauffeurSession here: a transient DB error would destroy a valid session.
+  if (error || !driver || !driver.active || driver.approval_status !== "approved") return null
 
   return {
     id: driver.id,

@@ -22,7 +22,21 @@ export async function getChauffeurSession() {
 
 export async function clearChauffeurSession() {
   const store = await cookies()
-  store.delete(CHAUFFEUR_SESSION_COOKIE)
+  // Clear both path variants: legacy sessions used path=/chauffeur, current sessions use path=/
+  store.set(CHAUFFEUR_SESSION_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  })
+  store.set(CHAUFFEUR_SESSION_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/chauffeur",
+    maxAge: 0,
+  })
 }
 
 // TODO: replace raw driverId cookie value with signed session or Supabase Auth before broad rollout.
