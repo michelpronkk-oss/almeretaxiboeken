@@ -1,5 +1,5 @@
-﻿import { NextRequest } from "next/server"
-import { getAuthenticatedDriverId } from "@/lib/driver-auth"
+import { NextRequest } from "next/server"
+import { getCurrentDriver, driverHasDispatchRights } from "@/lib/chauffeur/current-driver"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 interface ReportBody {
@@ -10,8 +10,10 @@ interface ReportBody {
 }
 
 export async function POST(request: NextRequest) {
-  const driverId = await getAuthenticatedDriverId()
-  if (!driverId) return Response.json({ success: false, message: "Niet geautoriseerd." }, { status: 401 })
+  const currentDriver = await getCurrentDriver()
+  if (!currentDriver) {
+    return Response.json({ success: false, code: "NOT_AUTHORIZED", message: "Niet geautoriseerd." }, { status: 401 })
+  }
 
   const body = (await request.json()) as ReportBody
   const bookingId = String(body.bookingId || "").trim()
@@ -26,13 +28,31 @@ export async function POST(request: NextRequest) {
   const supabase = getSupabaseServiceClient()
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id, booking_status, arrived_at")
+    .select("id, booking_status, arrived_at, assigned_driver_id, deleted_at")
     .eq("id", bookingId)
-    .eq("assigned_driver_id", driverId)
     .maybeSingle()
 
-  if (!booking) {
+  if (!booking || booking.deleted_at) {
     return Response.json({ success: false, message: "Rit niet gevonden." }, { status: 404 })
+  }
+
+  const isOwnRide = String(booking.assigned_driver_id ?? "") === String(currentDriver.id)
+  const hasDispatch = driverHasDispatchRights(currentDriver)
+
+  if (!isOwnRide && !hasDispatch) {
+    console.error("[chauffeur-authz-failed]", {
+      route: "report",
+      bookingId,
+      currentDriverId: currentDriver.id,
+      currentDriverEmail: currentDriver.email,
+      isOwner: currentDriver.is_owner,
+      canDispatch: currentDriver.can_dispatch,
+      active: currentDriver.active,
+      approvalStatus: currentDriver.approval_status,
+      assignedDriverId: booking.assigned_driver_id,
+      assignedEqualsCurrent: isOwnRide,
+    })
+    return Response.json({ success: false, code: "NOT_AUTHORIZED", message: "Niet geautoriseerd." }, { status: 403 })
   }
 
   if (reportType === "issue") {
@@ -53,7 +73,7 @@ export async function POST(request: NextRequest) {
       booking_id: bookingId,
       event_type: "driver_issue_reported",
       actor_type: "driver",
-      actor_id: driverId,
+      actor_id: currentDriver.id,
       note: `Reason: ${reason}. Note: ${note}`,
     })
 
@@ -75,11 +95,10 @@ export async function POST(request: NextRequest) {
   const arrivedAt = new Date(booking.arrived_at)
   const minNoShowAt = new Date(arrivedAt.getTime() + 10 * 60_000)
   if (new Date().getTime() < minNoShowAt.getTime()) {
-    return Response.json({
-      success: false,
-      code: "TOO_EARLY_FOR_NO_SHOW",
-      message: "No-show melden kan na 10 minuten wachttijd.",
-    }, { status: 400 })
+    return Response.json(
+      { success: false, code: "TOO_EARLY_FOR_NO_SHOW", message: "No-show melden kan na 10 minuten wachttijd." },
+      { status: 400 }
+    )
   }
 
   const { error } = await supabase
@@ -95,7 +114,7 @@ export async function POST(request: NextRequest) {
     booking_id: bookingId,
     event_type: "driver_no_show_reported",
     actor_type: "driver",
-    actor_id: driverId,
+    actor_id: currentDriver.id,
     note,
   })
 

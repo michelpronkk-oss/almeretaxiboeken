@@ -146,48 +146,72 @@ async function approveDriverAction(formData: FormData) {
   const driverId = String(formData.get("driverId") || "")
   if (!driverId) return
 
-  try {
-    const supabase = getSupabaseServiceClient()
+  // NOTE: redirect() throws a NEXT_REDIRECT error internally.
+  // Never place redirect() inside a try/catch — it will be swallowed by the catch block
+  // and re-directed to the error path even when the operation succeeded.
+  // All redirect() calls are outside try/catch here.
 
-    const { data: driver, error: driverError } = await supabase
-      .from("drivers")
-      .select("id, email")
-      .eq("id", driverId)
-      .maybeSingle()
+  const supabase = getSupabaseServiceClient()
 
-    if (driverError || !driver) {
-      redirect(`/admin/chauffeurs?actionError=${encodeURIComponent("Chauffeur niet gevonden.")}`)
-    }
+  const { data: driver, error: findError } = await supabase
+    .from("drivers")
+    .select("id, email")
+    .eq("id", driverId)
+    .maybeSingle()
 
-    const { error: approveError } = await supabase
-      .from("drivers")
-      .update({
-        approval_status: "approved",
-        onboarding_status: "approved",
-        active: true,
-        status: "available",
-        approved_at: new Date().toISOString(),
-        approved_by: "admin",
-      })
-      .eq("id", driverId)
+  if (findError || !driver) {
+    redirect(`/admin/chauffeurs?actionError=${encodeURIComponent("Chauffeur niet gevonden.")}`)
+  }
 
-    if (approveError) {
-      redirect(`/admin/chauffeurs?actionError=${encodeURIComponent("Goedkeuren mislukt.")}`)
-    }
+  const { error: approveError } = await supabase
+    .from("drivers")
+    .update({
+      approval_status: "approved",
+      onboarding_status: "approved",
+      active: true,
+      status: "available",
+      approved_at: new Date().toISOString(),
+      approved_by: "admin",
+      deleted_at: null,
+      archived_at: null,
+    })
+    .eq("id", driverId)
 
-    const accessToken = await createDriverAccessToken(driver.id, 60 * 24 * 7)
-    const emailResult = await sendDriverApprovedEmail(driver.email, accessToken)
-
-    revalidatePath("/admin/chauffeurs")
-
-    if (!emailResult.sent) {
-      redirect(`/admin/chauffeurs?actionStatus=${encodeURIComponent("Chauffeur goedgekeurd. E-mail niet verzonden (Resend ontbreekt).")}`)
-    }
-
-    redirect(`/admin/chauffeurs?actionStatus=${encodeURIComponent("Chauffeur goedgekeurd en e-mail verzonden.")}`)
-  } catch {
+  if (approveError) {
+    console.error("[admin-driver-approve] updateSuccess: false, error:", approveError.message)
     redirect(`/admin/chauffeurs?actionError=${encodeURIComponent("Goedkeuren mislukt.")}`)
   }
+
+  revalidatePath("/admin/chauffeurs")
+  revalidatePath(`/admin/chauffeurs/${driverId}`)
+  revalidatePath("/admin")
+
+  // Email is best-effort — wrap only this in try/catch, never the redirect calls
+  let emailSent = false
+  let emailWarning = ""
+  try {
+    const accessToken = await createDriverAccessToken(driver!.id, 60 * 24 * 7)
+    const mail = await sendDriverApprovedEmail(driver!.email, accessToken)
+    emailSent = mail.sent
+    if (!emailSent) emailWarning = "E-mail niet verzonden (Resend ontbreekt)."
+  } catch {
+    emailWarning = "E-mail kon niet worden verzonden."
+  }
+
+  console.log("[admin-driver-approve]", {
+    driverId,
+    email: driver!.email,
+    updateSuccess: true,
+    emailAttempted: true,
+    emailSent,
+    returnedSuccess: true,
+  })
+
+  if (emailWarning) {
+    redirect(`/admin/chauffeurs?actionStatus=${encodeURIComponent(`Chauffeur goedgekeurd. ${emailWarning}`)}`)
+  }
+
+  redirect(`/admin/chauffeurs?actionStatus=${encodeURIComponent("Chauffeur goedgekeurd en e-mail verzonden.")}`)
 }
 
 async function deactivateDriverAction(formData: FormData) {
@@ -216,13 +240,28 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
 
   const params = await searchParams
   const supabase = getSupabaseServiceClient()
-  const { data: drivers } = await supabase
+
+  const DRIVER_COLS = "id, first_name, last_name, full_name, email, phone, vehicle_type, license_plate, onboarding_status, approval_status, active, is_owner, default_assign, can_dispatch, deleted_at"
+
+  const { data: driversRaw, error: driversError } = await supabase
     .from("drivers")
-    .select(
-      "id, first_name, last_name, full_name, email, phone, vehicle_type, license_plate, onboarding_status, approval_status, active, is_owner, default_assign, can_dispatch",
-    )
+    .select(DRIVER_COLS)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
+
+  // If the filtered query failed (e.g. deleted_at column not yet migrated), fall back
+  // to the unfiltered list so approved drivers are never invisible due to a schema gap.
+  let drivers = driversRaw ?? []
+  if (driversError) {
+    console.error("[admin-drivers-list] primary query error:", driversError.message, "— falling back to unfiltered query")
+    const { data: fallback } = await supabase
+      .from("drivers")
+      .select("id, first_name, last_name, full_name, email, phone, vehicle_type, license_plate, onboarding_status, approval_status, active, is_owner, default_assign, can_dispatch")
+      .order("created_at", { ascending: false })
+    drivers = (fallback ?? []).map((d) => ({ ...d, deleted_at: null }))
+  }
+
+  console.log("[admin-drivers-list] count:", drivers.length)
 
   return (
     <section className="space-y-6">

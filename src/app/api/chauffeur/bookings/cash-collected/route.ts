@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server"
-import { getAuthenticatedDriverId } from "@/lib/driver-auth"
+import { getCurrentDriver } from "@/lib/chauffeur/current-driver"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 export async function POST(request: NextRequest) {
-  const driverId = await getAuthenticatedDriverId()
-  if (!driverId) {
-    return Response.json({ success: false, message: "Niet geautoriseerd." }, { status: 401 })
+  const currentDriver = await getCurrentDriver()
+  if (!currentDriver) {
+    return Response.json({ success: false, code: "NOT_AUTHORIZED", message: "Niet geautoriseerd." }, { status: 401 })
   }
 
   const body = (await request.json()) as { bookingId?: string }
@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
     return Response.json({ success: false, message: "Rit niet gevonden." }, { status: 404 })
   }
 
-  if (booking.assigned_driver_id !== driverId) {
+  // Cash collection is strictly limited to the assigned driver (not even dispatchers).
+  if (String(booking.assigned_driver_id ?? "") !== String(currentDriver.id)) {
     return Response.json({ success: false, message: "Deze rit is niet aan u toegewezen." }, { status: 403 })
   }
 
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
       payment_status: "cash_collected",
       cash_collection_status: "collected",
       cash_collected_at: new Date().toISOString(),
-      cash_collected_by: driverId,
+      cash_collected_by: currentDriver.id,
     })
     .eq("id", bookingId)
 
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
     booking_id: bookingId,
     event_type: "cash_collected",
     actor_type: "driver",
-    note: `Contant ontvangen door chauffeur ${driverId}.`,
+    note: `Contant ontvangen door chauffeur ${currentDriver.id}.`,
   })
 
   return Response.json({ success: true })

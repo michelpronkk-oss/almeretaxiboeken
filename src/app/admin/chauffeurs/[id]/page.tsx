@@ -17,42 +17,70 @@ async function approveDriverAction(formData: FormData) {
   const driverId = String(formData.get("driverId") || "")
   if (!driverId) return
 
-  try {
-    const supabase = getSupabaseServiceClient()
-    const { data: driver } = await supabase
-      .from("drivers")
-      .select("id, email")
-      .eq("id", driverId)
-      .maybeSingle()
+  // redirect() throws NEXT_REDIRECT internally — keep all redirect() calls outside try/catch
+  // to prevent the catch block from swallowing the redirect and re-routing to the error page.
 
-    if (!driver) redirect(`/admin/chauffeurs/${driverId}?actionError=${encodeURIComponent("Chauffeur niet gevonden")}`)
+  const supabase = getSupabaseServiceClient()
 
-    await supabase
-      .from("drivers")
-      .update({
-        approval_status: "approved",
-        onboarding_status: "approved",
-        active: true,
-        status: "available",
-        approved_at: new Date().toISOString(),
-        approved_by: "admin",
-      })
-      .eq("id", driverId)
+  const { data: driver, error: findError } = await supabase
+    .from("drivers")
+    .select("id, email")
+    .eq("id", driverId)
+    .maybeSingle()
 
-    const accessToken = await createDriverAccessToken(driver.id, 60 * 24 * 7)
-    const mail = await sendDriverApprovedEmail(driver.email, accessToken)
+  if (findError || !driver) {
+    redirect(`/admin/chauffeurs/${driverId}?actionError=${encodeURIComponent("Chauffeur niet gevonden.")}`)
+  }
 
-    revalidatePath(`/admin/chauffeurs/${driverId}`)
-    revalidatePath("/admin/chauffeurs")
+  const { error: updateError } = await supabase
+    .from("drivers")
+    .update({
+      approval_status: "approved",
+      onboarding_status: "approved",
+      active: true,
+      status: "available",
+      approved_at: new Date().toISOString(),
+      approved_by: "admin",
+      deleted_at: null,
+      archived_at: null,
+    })
+    .eq("id", driverId)
 
-    if (!mail.sent) {
-      redirect(`/admin/chauffeurs/${driverId}?actionStatus=${encodeURIComponent("Goedgekeurd. E-mail niet verzonden (Resend ontbreekt).")}`)
-    }
-
-    redirect(`/admin/chauffeurs/${driverId}?actionStatus=${encodeURIComponent("Goedgekeurd en e-mail verzonden.")}`)
-  } catch {
+  if (updateError) {
+    console.error("[admin-driver-approve] updateSuccess: false, error:", updateError.message)
     redirect(`/admin/chauffeurs/${driverId}?actionError=${encodeURIComponent("Goedkeuren mislukt.")}`)
   }
+
+  revalidatePath(`/admin/chauffeurs/${driverId}`)
+  revalidatePath("/admin/chauffeurs")
+  revalidatePath("/admin")
+
+  // Email is best-effort — only this block is in try/catch, not the redirect calls
+  let emailSent = false
+  let emailWarning = ""
+  try {
+    const accessToken = await createDriverAccessToken(driver!.id, 60 * 24 * 7)
+    const mail = await sendDriverApprovedEmail(driver!.email, accessToken)
+    emailSent = mail.sent
+    if (!emailSent) emailWarning = "E-mail niet verzonden (Resend ontbreekt)."
+  } catch {
+    emailWarning = "E-mail kon niet worden verzonden."
+  }
+
+  console.log("[admin-driver-approve]", {
+    driverId,
+    email: driver!.email,
+    updateSuccess: true,
+    emailAttempted: true,
+    emailSent,
+    returnedSuccess: true,
+  })
+
+  if (emailWarning) {
+    redirect(`/admin/chauffeurs/${driverId}?actionStatus=${encodeURIComponent(`Goedgekeurd. ${emailWarning}`)}`)
+  }
+
+  redirect(`/admin/chauffeurs/${driverId}?actionStatus=${encodeURIComponent("Goedgekeurd en e-mail verzonden.")}`)
 }
 
 async function rejectDriverAction(formData: FormData) {
@@ -186,15 +214,33 @@ export default async function AdminDriverDetailPage({
 
       <div className="rounded-2xl border border-[#292520] bg-[#141210] p-5">
         <h2 className="text-lg font-semibold">Acties</h2>
+
+        {driver.approval_status === "approved" && driver.active ? (
+          <p className="mt-3 rounded-md border border-[#22A06B]/30 bg-[#22A06B]/10 px-3 py-2 text-xs text-[#9de2c5]">
+            Chauffeur is goedgekeurd en actief.
+          </p>
+        ) : null}
+
         <div className="mt-3 flex flex-wrap gap-2">
-          <form action={approveDriverAction}>
-            <input type="hidden" name="driverId" value={driver.id} />
-            <PendingSubmitButton
-              idleLabel="Goedkeuren"
-              pendingLabel="Goedkeuren..."
-              className="rounded-md border border-[#22A06B]/40 px-3 py-2 text-sm text-[#9de2c5] hover:bg-[#22A06B]/10"
-            />
-          </form>
+          {driver.approval_status !== "approved" || !driver.active ? (
+            <form action={approveDriverAction}>
+              <input type="hidden" name="driverId" value={driver.id} />
+              <PendingSubmitButton
+                idleLabel="Goedkeuren"
+                pendingLabel="Goedkeuren..."
+                className="rounded-md border border-[#22A06B]/40 px-3 py-2 text-sm text-[#9de2c5] hover:bg-[#22A06B]/10"
+              />
+            </form>
+          ) : (
+            <form action={approveDriverAction}>
+              <input type="hidden" name="driverId" value={driver.id} />
+              <PendingSubmitButton
+                idleLabel="Opnieuw goedkeuren"
+                pendingLabel="Goedkeuren..."
+                className="rounded-md border border-[#292520] px-3 py-2 text-xs text-[#8F877D] hover:text-[#B7AEA2]"
+              />
+            </form>
+          )}
           <form action={rejectDriverAction}>
             <input type="hidden" name="driverId" value={driver.id} />
             <PendingSubmitButton

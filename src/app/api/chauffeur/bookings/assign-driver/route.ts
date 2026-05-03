@@ -1,50 +1,36 @@
 import { NextRequest } from "next/server"
-import { getChauffeurSession } from "@/lib/chauffeur-auth"
+import { getCurrentDriver, driverHasDispatchRights } from "@/lib/chauffeur/current-driver"
 import { sendEmail } from "@/lib/email/send"
 import { driverAssignedRideEmail } from "@/lib/email/templates"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 export async function POST(request: NextRequest) {
-  const driverId = await getChauffeurSession()
+  const currentDriver = await getCurrentDriver()
 
-  console.log("[chauffeur-assign] currentDriverId exists:", !!driverId)
-
-  if (!driverId) {
-    return Response.json(
-      { success: false, code: "NOT_AUTHORIZED", message: "Niet ingelogd als chauffeur." },
-      { status: 401 }
-    )
-  }
-
-  const supabase = getSupabaseServiceClient()
-
-  const { data: currentDriver } = await supabase
-    .from("drivers")
-    .select("id, email, full_name, first_name, last_name, active, approval_status, is_owner, can_dispatch, default_assign, deleted_at")
-    .eq("id", driverId)
-    .maybeSingle()
-
+  console.log("[chauffeur-assign] currentDriverId exists:", !!currentDriver?.id)
   console.log("[chauffeur-assign] currentDriverEmail:", currentDriver?.email ?? "(not found)")
   console.log("[chauffeur-assign] isOwner:", currentDriver?.is_owner ?? false)
   console.log("[chauffeur-assign] canDispatch:", currentDriver?.can_dispatch ?? false)
   console.log("[chauffeur-assign] active:", currentDriver?.active ?? false)
   console.log("[chauffeur-assign] approvalStatus:", currentDriver?.approval_status ?? "(none)")
 
-  if (
-    !currentDriver ||
-    !currentDriver.active ||
-    currentDriver.approval_status !== "approved" ||
-    currentDriver.deleted_at
-  ) {
+  if (!currentDriver) {
     return Response.json(
-      { success: false, code: "NOT_AUTHORIZED", message: "Chauffeur niet gevonden of niet actief." },
-      { status: 403 }
+      { success: false, code: "NOT_AUTHORIZED", message: "Niet ingelogd als chauffeur." },
+      { status: 401 }
     )
   }
 
-  const hasDispatchRights = currentDriver.can_dispatch === true || currentDriver.is_owner === true
-
-  if (!hasDispatchRights) {
+  if (!driverHasDispatchRights(currentDriver)) {
+    console.error("[chauffeur-authz-failed]", {
+      route: "assign-driver",
+      currentDriverId: currentDriver.id,
+      currentDriverEmail: currentDriver.email,
+      isOwner: currentDriver.is_owner,
+      canDispatch: currentDriver.can_dispatch,
+      active: currentDriver.active,
+      approvalStatus: currentDriver.approval_status,
+    })
     return Response.json(
       { success: false, code: "NOT_AUTHORIZED", message: "U heeft geen rechten om ritten toe te wijzen." },
       { status: 403 }
@@ -61,6 +47,8 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     )
   }
+
+  const supabase = getSupabaseServiceClient()
 
   const { data: booking } = await supabase
     .from("bookings")
@@ -110,16 +98,16 @@ export async function POST(request: NextRequest) {
   }
 
   const targetName =
-    [targetDriver.first_name, targetDriver.last_name].filter(Boolean).join(" ") ||
+    [targetDriver.first_name, targetDriver.last_name].filter(Boolean).join(" ").trim() ||
     targetDriver.full_name ||
     targetDriver.email ||
     targetDriverId
 
   const dispatcherName =
-    [currentDriver.first_name, currentDriver.last_name].filter(Boolean).join(" ") ||
+    [currentDriver.first_name, currentDriver.last_name].filter(Boolean).join(" ").trim() ||
     currentDriver.full_name ||
     currentDriver.email ||
-    driverId
+    currentDriver.id
 
   await supabase.from("booking_events").insert({
     booking_id: bookingId,
