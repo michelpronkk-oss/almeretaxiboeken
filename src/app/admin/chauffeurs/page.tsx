@@ -225,14 +225,15 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
   return (
     <section className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Chauffeurs</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">Chauffeurs</h1>
         <p className="mt-2 text-sm text-[#B7AEA2]">Beheer chauffeurs, voertuigen en beschikbaarheid.</p>
       </div>
 
+      {/* Invite card */}
       <div className="rounded-2xl border border-[#292520] bg-[#141210] p-5">
-        <h2 className="text-lg font-semibold">Chauffeur uitnodigen</h2>
+        <h2 className="text-base font-semibold sm:text-lg">Chauffeur uitnodigen</h2>
         <p className="mt-1 text-sm text-[#B7AEA2]">
-          Vul alleen het e-mailadres in. De chauffeur ontvangt een beveiligde link om het profiel compleet te maken.
+          Vul het e-mailadres in. De chauffeur ontvangt een beveiligde link om het profiel compleet te maken.
         </p>
 
         <form action={inviteDriverAction} className="mt-4 flex flex-col gap-3 sm:flex-row">
@@ -241,48 +242,117 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
             name="email"
             required
             placeholder="naam@voorbeeld.nl"
-            className="h-11 flex-1 rounded-md border border-[#292520] bg-[#0D0C0B] px-3 text-sm"
+            className="h-11 min-w-0 flex-1 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] placeholder:text-[#8F877D] sm:text-sm"
           />
           <PendingSubmitButton
             idleLabel="Uitnodiging versturen"
-            pendingLabel="Uitnodiging versturen..."
-            className="rounded-md border border-[#3A2D1F] px-4 py-2 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815]"
+            pendingLabel="Versturen..."
+            className="h-11 shrink-0 rounded-lg border border-[#3A2D1F] px-5 text-sm font-semibold text-[#D6B58A] hover:bg-[#1B1815]"
           />
         </form>
 
         {params.sent === "1" && params.email ? (
-          <p className="mt-3 rounded-md border border-[#22A06B]/30 bg-[#22A06B]/10 px-3 py-2 text-xs text-[#9de2c5]">
-            Uitnodiging verstuurd naar {params.email}.
+          <p className="mt-3 rounded-lg border border-[#22A06B]/30 bg-[#22A06B]/10 px-3 py-2 text-xs text-[#9de2c5]">
+            Uitnodiging verstuurd naar <span className="break-all">{params.email}</span>.
           </p>
         ) : null}
-
         {params.error ? (
-          <p className="mt-3 rounded-md border border-[#D94A4A]/30 bg-[#D94A4A]/10 px-3 py-2 text-xs text-[#ffb4b4]">
-            {params.error}
-          </p>
+          <p className="mt-3 rounded-lg border border-[#D94A4A]/30 bg-[#D94A4A]/10 px-3 py-2 text-xs text-[#ffb4b4]">{params.error}</p>
         ) : null}
-
         {params.actionStatus ? (
-          <p className="mt-3 rounded-md border border-[#22A06B]/30 bg-[#22A06B]/10 px-3 py-2 text-xs text-[#9de2c5]">{params.actionStatus}</p>
+          <p className="mt-3 rounded-lg border border-[#22A06B]/30 bg-[#22A06B]/10 px-3 py-2 text-xs text-[#9de2c5]">{params.actionStatus}</p>
         ) : null}
-
         {params.actionError ? (
-          <p className="mt-3 rounded-md border border-[#D94A4A]/30 bg-[#D94A4A]/10 px-3 py-2 text-xs text-[#ffb4b4]">{params.actionError}</p>
+          <p className="mt-3 rounded-lg border border-[#D94A4A]/30 bg-[#D94A4A]/10 px-3 py-2 text-xs text-[#ffb4b4]">{params.actionError}</p>
         ) : null}
-
         {params.inviteLink ? (
-          <div className="mt-3 rounded-md border border-[#D6B58A]/30 bg-[#3A2D1F]/20 p-3">
-            <p className="text-xs text-[#D6B58A]">Resend is niet ingesteld. Kopieer deze uitnodigingslink handmatig.</p>
+          <div className="mt-3 rounded-lg border border-[#D6B58A]/30 bg-[#3A2D1F]/20 p-3">
+            <p className="text-xs text-[#D6B58A]">Resend niet ingesteld. Kopieer de link handmatig.</p>
             <input
               readOnly
               value={params.inviteLink}
-              className="mt-2 h-10 w-full rounded-md border border-[#292520] bg-[#0D0C0B] px-3 text-xs text-[#B7AEA2]"
+              className="mt-2 h-10 w-full min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-xs text-[#B7AEA2]"
             />
           </div>
         ) : null}
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-[#292520] bg-[#141210]">
+      {/* Mobile cards */}
+      <div className="space-y-3 lg:hidden">
+        {!drivers?.length ? (
+          <p className="text-sm text-[#8F877D]">Geen chauffeurs gevonden.</p>
+        ) : null}
+        {drivers?.map((driver) => {
+          const firstLast = [driver.first_name, driver.last_name].filter(Boolean).join(" ")
+          const name = firstLast || driver.full_name || "Nog niet ingevuld"
+          const statusLabel =
+            driver.active ? "Actief"
+            : driver.approval_status === "approved" ? "Goedgekeurd"
+            : driver.onboarding_status === "submitted" ? "Voor controle"
+            : "Uitgenodigd"
+          const statusStyle =
+            driver.active ? "border-[#22A06B]/30 bg-[#22A06B]/10 text-[#22A06B]"
+            : driver.onboarding_status === "submitted" ? "border-[#D6B58A]/30 bg-[#D6B58A]/10 text-[#D6B58A]"
+            : "border-[#292520] bg-[#0D0C0B] text-[#B7AEA2]"
+
+          return (
+            <article key={driver.id} className="rounded-2xl border border-[#292520] bg-[#141210] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-[#F5F1E8]">{name}</p>
+                  <p className="mt-0.5 break-all text-xs text-[#B7AEA2]">{driver.email}</p>
+                  {driver.phone ? <p className="mt-0.5 text-xs text-[#8F877D]">{driver.phone}</p> : null}
+                </div>
+                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${statusStyle}`}>
+                  {statusLabel}
+                </span>
+              </div>
+              {(driver.vehicle_type || driver.license_plate) ? (
+                <p className="mt-2 text-xs text-[#8F877D]">
+                  {[driver.vehicle_type, driver.license_plate].filter(Boolean).join(" · ")}
+                </p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link
+                  href={`/admin/chauffeurs/${driver.id}`}
+                  className="rounded-lg border border-[#292520] px-3 py-2 text-xs text-[#B7AEA2] hover:bg-[#141210] hover:text-[#F5F1E8]"
+                >
+                  Bekijken
+                </Link>
+                <form action={resendInviteAction}>
+                  <input type="hidden" name="email" value={driver.email || ""} />
+                  <PendingSubmitButton
+                    idleLabel="Opnieuw uitnodigen"
+                    pendingLabel="Versturen..."
+                    className="rounded-lg border border-[#3A2D1F] px-3 py-2 text-xs text-[#D6B58A] hover:bg-[#1B1815]"
+                  />
+                </form>
+                {driver.onboarding_status === "submitted" ? (
+                  <form action={approveDriverAction}>
+                    <input type="hidden" name="driverId" value={driver.id} />
+                    <PendingSubmitButton
+                      idleLabel="Goedkeuren"
+                      pendingLabel="Goedkeuren..."
+                      className="rounded-lg border border-[#22A06B]/40 px-3 py-2 text-xs text-[#9de2c5] hover:bg-[#22A06B]/10"
+                    />
+                  </form>
+                ) : null}
+                <form action={deactivateDriverAction}>
+                  <input type="hidden" name="driverId" value={driver.id} />
+                  <PendingSubmitButton
+                    idleLabel="Deactiveren"
+                    pendingLabel="Deactiveren..."
+                    className="rounded-lg border border-[#D94A4A]/40 px-3 py-2 text-xs text-[#ffb4b4] hover:bg-[#D94A4A]/10"
+                  />
+                </form>
+              </div>
+            </article>
+          )
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden overflow-x-auto rounded-2xl border border-[#292520] bg-[#141210] lg:block">
         <table className="min-w-full text-sm">
           <thead className="border-b border-[#292520] bg-[#0D0C0B] text-left text-xs text-[#8F877D]">
             <tr>
@@ -301,11 +371,10 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
             {drivers?.map((driver) => {
               const firstLast = [driver.first_name, driver.last_name].filter(Boolean).join(" ")
               const name = firstLast || driver.full_name || "Nog niet ingevuld"
-
               return (
                 <tr key={driver.id} className="border-b border-[#292520]/60 align-top">
                   <td className="px-3 py-3">{name}</td>
-                  <td className="px-3 py-3 text-[#B7AEA2]">{driver.email}</td>
+                  <td className="max-w-[180px] break-all px-3 py-3 text-[#B7AEA2]">{driver.email}</td>
                   <td className="px-3 py-3 text-[#B7AEA2]">{driver.phone || "-"}</td>
                   <td className="px-3 py-3 text-[#B7AEA2]">{driver.vehicle_type || "-"}</td>
                   <td className="px-3 py-3 text-[#B7AEA2]">{driver.license_plate || "-"}</td>
@@ -320,7 +389,6 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
                       >
                         Bekijken
                       </Link>
-
                       <form action={resendInviteAction}>
                         <input type="hidden" name="email" value={driver.email || ""} />
                         <PendingSubmitButton
@@ -329,7 +397,6 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
                           className="rounded-md border border-[#3A2D1F] px-2 py-1 text-xs text-[#D6B58A] hover:bg-[#1B1815]"
                         />
                       </form>
-
                       {driver.onboarding_status === "submitted" ? (
                         <form action={approveDriverAction}>
                           <input type="hidden" name="driverId" value={driver.id} />
@@ -340,7 +407,6 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
                           />
                         </form>
                       ) : null}
-
                       <form action={deactivateDriverAction}>
                         <input type="hidden" name="driverId" value={driver.id} />
                         <PendingSubmitButton

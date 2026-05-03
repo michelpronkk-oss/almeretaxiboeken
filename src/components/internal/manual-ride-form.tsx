@@ -280,9 +280,9 @@ export default function ManualRideForm() {
         <article className="rounded-2xl border border-[#292520] bg-[#141210] p-4">
           <h2 className="text-sm font-semibold text-[#F5F1E8]">1. Klantgegevens</h2>
           <div className="mt-3 space-y-3">
-            <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Klantnaam" className="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8]" />
-            <input value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="E-mail klant (optioneel)" className="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8]" />
-            <input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Telefoon klant" className="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8]" />
+            <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Klantnaam" className="h-11 w-full min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] placeholder:text-[#8F877D] sm:h-10 sm:text-sm" />
+            <input value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="E-mail klant (optioneel)" className="h-11 w-full min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] placeholder:text-[#8F877D] sm:h-10 sm:text-sm" />
+            <input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Telefoon klant" className="h-11 w-full min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] placeholder:text-[#8F877D] sm:h-10 sm:text-sm" />
           </div>
         </article>
 
@@ -306,12 +306,12 @@ export default function ManualRideForm() {
               placeholder="Bestemmingsadres"
               inputClassName="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8] placeholder:text-[#8F877D] outline-none focus:border-[#D6B58A]/50"
             />
-            <div className="grid grid-cols-2 gap-3">
-              <input type="date" value={pickupDate} onChange={(e) => setPickupDate(e.target.value)} className="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8]" />
-              <input type="time" value={pickupTime} onChange={(e) => setPickupTime(e.target.value)} className="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8]" />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <input type="date" value={pickupDate} onChange={(e) => setPickupDate(e.target.value)} className="h-11 w-full min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm" />
+              <input type="time" value={pickupTime} onChange={(e) => setPickupTime(e.target.value)} className="h-11 w-full min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <select value={passengers} onChange={(e) => setPassengers(Number(e.target.value))} className="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8]">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <select value={passengers} onChange={(e) => setPassengers(Number(e.target.value))} className="h-11 w-full min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm">
                 {passengerOptions.map((p) => (
                   <option key={p} value={p}>{p} {p === 1 ? "persoon" : "personen"}</option>
                 ))}
@@ -319,7 +319,7 @@ export default function ManualRideForm() {
               <select
                 value={vehicleType}
                 onChange={(e) => { setVehicleType(e.target.value as "taxi" | "taxibus"); setAdminVehicleOverride(true) }}
-                className="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#D6B58A]"
+                className="h-11 w-full min-w-0 rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#D6B58A] sm:h-10 sm:text-sm"
               >
                 <option value="taxi">Taxi</option>
                 <option value="taxibus">Taxibus</option>
