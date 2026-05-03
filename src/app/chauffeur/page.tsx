@@ -1,12 +1,12 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getAuthenticatedDriverId } from "@/lib/driver-auth"
+import { getAuthenticatedDriver } from "@/lib/driver-auth"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 import { ArrowRight, Car, CheckCircle2, Clock, MapPin } from "lucide-react"
 
 export default async function ChauffeurPage() {
-  const driverId = await getAuthenticatedDriverId()
-  if (!driverId) redirect("/chauffeur/login")
+  const driver = await getAuthenticatedDriver()
+  if (!driver) redirect("/chauffeur/login")
 
   const supabase = getSupabaseServiceClient()
   const today = new Date().toISOString().slice(0, 10)
@@ -14,47 +14,66 @@ export default async function ChauffeurPage() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? "Goedemorgen" : hour < 18 ? "Goedemiddag" : "Goedenavond"
 
+  const isDispatcher = driver.can_dispatch
+
   const [
-    { data: driver },
     { count: todayCount },
     { count: upcomingCount },
     { count: completedCount },
     { data: nextRides },
   ] = await Promise.all([
-    supabase
-      .from("drivers")
-      .select("first_name, last_name, vehicle_type")
-      .eq("id", driverId)
-      .single(),
+    isDispatcher
+      ? supabase
+          .from("bookings")
+          .select("id", { count: "exact", head: true })
+          .eq("pickup_date", today)
+          .is("deleted_at", null)
+      : supabase
+          .from("bookings")
+          .select("id", { count: "exact", head: true })
+          .eq("assigned_driver_id", driver.id)
+          .eq("pickup_date", today)
+          .is("deleted_at", null),
+    isDispatcher
+      ? supabase
+          .from("bookings")
+          .select("id", { count: "exact", head: true })
+          .gt("pickup_date", today)
+          .is("deleted_at", null)
+      : supabase
+          .from("bookings")
+          .select("id", { count: "exact", head: true })
+          .eq("assigned_driver_id", driver.id)
+          .gt("pickup_date", today)
+          .is("deleted_at", null),
     supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
-      .eq("assigned_driver_id", driverId)
-      .eq("pickup_date", today),
-    supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("assigned_driver_id", driverId)
-      .gt("pickup_date", today),
-    supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("assigned_driver_id", driverId)
+      .eq("assigned_driver_id", driver.id)
       .eq("booking_status", "completed"),
-    supabase
-      .from("bookings")
-      .select(
-        "id, reference, pickup_time, pickup_address, destination_address, passengers, vehicle_type, booking_status"
-      )
-      .eq("assigned_driver_id", driverId)
-      .gte("pickup_date", today)
-      .not("booking_status", "in", "(completed,cancelled,canceled)")
-      .order("pickup_date", { ascending: true })
-      .order("pickup_time", { ascending: true })
-      .limit(2),
+    isDispatcher
+      ? supabase
+          .from("bookings")
+          .select("id, reference, pickup_time, pickup_address, destination_address, passengers, vehicle_type, booking_status")
+          .gte("pickup_date", today)
+          .not("booking_status", "in", "(completed,cancelled,canceled,deleted)")
+          .is("deleted_at", null)
+          .order("pickup_date", { ascending: true })
+          .order("pickup_time", { ascending: true })
+          .limit(2)
+      : supabase
+          .from("bookings")
+          .select("id, reference, pickup_time, pickup_address, destination_address, passengers, vehicle_type, booking_status")
+          .eq("assigned_driver_id", driver.id)
+          .gte("pickup_date", today)
+          .not("booking_status", "in", "(completed,cancelled,canceled,deleted)")
+          .is("deleted_at", null)
+          .order("pickup_date", { ascending: true })
+          .order("pickup_time", { ascending: true })
+          .limit(2),
   ])
 
-  const firstName = driver?.first_name ?? "Chauffeur"
+  const firstName = driver.first_name ?? "Chauffeur"
 
   const stats = [
     { label: "Vandaag", value: todayCount ?? 0, icon: Clock },
@@ -71,10 +90,22 @@ export default async function ChauffeurPage() {
         </h1>
         <p className="mt-0.5 text-xs text-[#7F776E]">
           Welkom terug in uw chauffeurportaal
-          {driver?.vehicle_type
+          {driver.vehicle_type
             ? ` — ${driver.vehicle_type === "taxibus" ? "Taxibus" : "Taxi"}`
             : ""}
         </p>
+        {isDispatcher && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {driver.is_owner && (
+              <span className="inline-flex items-center rounded-full border border-[#D6B58A]/40 bg-[#D6B58A]/10 px-2.5 py-0.5 text-[10px] font-semibold text-[#D6B58A]">
+                Eigenaar
+              </span>
+            )}
+            <span className="inline-flex items-center rounded-full border border-[#22A06B]/30 bg-[#22A06B]/10 px-2.5 py-0.5 text-[10px] font-semibold text-[#22A06B]">
+              Planning
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Stats */}
@@ -95,7 +126,7 @@ export default async function ChauffeurPage() {
       {(nextRides ?? []).length > 0 && (
         <div>
           <p className="mb-3 text-[11px] font-medium uppercase tracking-wider text-[#7F776E]">
-            Volgende ritten
+            {isDispatcher ? "Volgende ritten (alle)" : "Volgende ritten"}
           </p>
           <div className="space-y-2">
             {(nextRides ?? []).map((ride) => (

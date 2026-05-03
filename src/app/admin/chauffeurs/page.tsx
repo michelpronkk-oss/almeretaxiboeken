@@ -2,6 +2,7 @@ import Link from "next/link"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import PendingSubmitButton from "@/components/internal/pending-submit-button"
+import DeleteDriverButton from "@/components/internal/delete-driver-button"
 import { isAdminAuthenticated } from "@/lib/admin-auth"
 import { createDriverAccessToken } from "@/lib/driver-access"
 import { sendDriverApprovedEmail } from "@/lib/driver-access-email"
@@ -218,8 +219,9 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
   const { data: drivers } = await supabase
     .from("drivers")
     .select(
-      "id, first_name, last_name, full_name, email, phone, vehicle_type, license_plate, onboarding_status, approval_status, active",
+      "id, first_name, last_name, full_name, email, phone, vehicle_type, license_plate, onboarding_status, approval_status, active, is_owner, default_assign, can_dispatch",
     )
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
 
   return (
@@ -285,6 +287,7 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
         {drivers?.map((driver) => {
           const firstLast = [driver.first_name, driver.last_name].filter(Boolean).join(" ")
           const name = firstLast || driver.full_name || "Nog niet ingevuld"
+          const isOwner = driver.is_owner || driver.default_assign
           const statusLabel =
             driver.active ? "Actief"
             : driver.approval_status === "approved" ? "Goedgekeurd"
@@ -299,7 +302,18 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
             <article key={driver.id} className="rounded-2xl border border-[#292520] bg-[#141210] p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-[#F5F1E8]">{name}</p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <p className="font-semibold text-[#F5F1E8]">{name}</p>
+                    {driver.is_owner && (
+                      <span className="rounded-full border border-[#D6B58A]/40 bg-[#D6B58A]/10 px-2 py-0.5 text-[9px] font-semibold text-[#D6B58A]">Eigenaar</span>
+                    )}
+                    {driver.default_assign && !driver.is_owner && (
+                      <span className="rounded-full border border-[#D6B58A]/30 bg-[#D6B58A]/5 px-2 py-0.5 text-[9px] text-[#D6B58A]">Standaard</span>
+                    )}
+                    {driver.can_dispatch && (
+                      <span className="rounded-full border border-[#22A06B]/30 bg-[#22A06B]/5 px-2 py-0.5 text-[9px] text-[#22A06B]">Planning</span>
+                    )}
+                  </div>
                   <p className="mt-0.5 break-all text-xs text-[#B7AEA2]">{driver.email}</p>
                   {driver.phone ? <p className="mt-0.5 text-xs text-[#8F877D]">{driver.phone}</p> : null}
                 </div>
@@ -345,6 +359,11 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
                     className="rounded-lg border border-[#D94A4A]/40 px-3 py-2 text-xs text-[#ffb4b4] hover:bg-[#D94A4A]/10"
                   />
                 </form>
+                <DeleteDriverButton
+                  driverId={driver.id}
+                  driverName={name}
+                  isOwner={isOwner}
+                />
               </div>
             </article>
           )
@@ -371,9 +390,23 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
             {drivers?.map((driver) => {
               const firstLast = [driver.first_name, driver.last_name].filter(Boolean).join(" ")
               const name = firstLast || driver.full_name || "Nog niet ingevuld"
+              const isOwner = driver.is_owner || driver.default_assign
               return (
                 <tr key={driver.id} className="border-b border-[#292520]/60 align-top">
-                  <td className="px-3 py-3">{name}</td>
+                  <td className="px-3 py-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span>{name}</span>
+                      {driver.is_owner && (
+                        <span className="rounded-full border border-[#D6B58A]/40 bg-[#D6B58A]/10 px-1.5 py-0.5 text-[9px] font-semibold text-[#D6B58A]">Eigenaar</span>
+                      )}
+                      {driver.default_assign && !driver.is_owner && (
+                        <span className="rounded-full border border-[#D6B58A]/30 bg-[#D6B58A]/5 px-1.5 py-0.5 text-[9px] text-[#D6B58A]">Standaard</span>
+                      )}
+                      {driver.can_dispatch && (
+                        <span className="rounded-full border border-[#22A06B]/30 bg-[#22A06B]/5 px-1.5 py-0.5 text-[9px] text-[#22A06B]">Planning</span>
+                      )}
+                    </div>
+                  </td>
                   <td className="max-w-[180px] break-all px-3 py-3 text-[#B7AEA2]">{driver.email}</td>
                   <td className="px-3 py-3 text-[#B7AEA2]">{driver.phone || "-"}</td>
                   <td className="px-3 py-3 text-[#B7AEA2]">{driver.vehicle_type || "-"}</td>
@@ -415,6 +448,11 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
                           className="rounded-md border border-[#D94A4A]/40 px-2 py-1 text-xs text-[#ffb4b4] hover:bg-[#D94A4A]/10"
                         />
                       </form>
+                      <DeleteDriverButton
+                        driverId={driver.id}
+                        driverName={name}
+                        isOwner={isOwner}
+                      />
                     </div>
                   </td>
                 </tr>

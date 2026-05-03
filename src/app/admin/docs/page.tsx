@@ -99,6 +99,29 @@ const sections = [
     ],
   },
   {
+    title: "12. Eigenaar en planning",
+    body: [
+      "Het account fntaxi87@gmail.com is ingesteld als eigenaar/chauffeur.",
+      "Nieuwe ritten worden standaard automatisch aan dit account gekoppeld.",
+      "De eigenaar kan vanuit het chauffeurportaal ritten doorzetten naar andere chauffeurs.",
+      "Normale chauffeurs zien alleen hun eigen toegewezen ritten.",
+      "Eigenaar en dispatcher krijgen badges 'Eigenaar' en 'Planning' te zien in het portaal.",
+      "Toewijzing vanuit het chauffeurportaal gebruikt POST /api/chauffeur/bookings/assign-driver.",
+    ],
+  },
+  {
+    title: "13. Testdata verwijderen",
+    body: [
+      "Chauffeurs en ritten worden veilig verwijderd via soft delete (deleted_at wordt gezet).",
+      "Verwijderde items verdwijnen uit planning, lijsten en KPI's.",
+      "Historische koppelingen blijven technisch behouden in de database.",
+      "De standaard eigenaar/chauffeur kan niet worden verwijderd via de interface.",
+      "Chauffeurs verwijderen: /admin/chauffeurs → 'Verwijderen' knop per rij.",
+      "Ritten verwijderen: /admin/ritten → 'Rit verwijderen' knop per rit.",
+      "Verwijdering vereist bevestiging en heeft een optioneel redenveld.",
+    ],
+  },
+  {
     title: "11. Vaste Schipholtarieven en prijsaanpassingen",
     body: [
       "AlmereTaxiBoeken past automatisch vaste routeprijzen toe voor bekende Schipholritten.",

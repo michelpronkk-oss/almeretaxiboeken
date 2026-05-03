@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import CopyButton from "@/components/internal/copy-button"
 import AdminAssignDriverControl from "@/components/internal/admin-assign-driver-control"
 import AdminExceptionActions from "@/components/internal/admin-exception-actions"
+import DeleteBookingButton from "@/components/internal/delete-booking-button"
 import { isAdminAuthenticated } from "@/lib/admin-auth"
 import { formatCurrencyEUR, formatPassengerVehicle } from "@/lib/format"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
@@ -33,11 +34,13 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
     .from("drivers")
     .select("id, full_name, active")
     .eq("active", true)
+    .is("deleted_at", null)
     .order("full_name", { ascending: true })
 
   let query = supabase
     .from("bookings")
     .select("id, reference, pickup_date, pickup_time, pickup_address, destination_address, customer_name, customer_phone, passengers, vehicle_type, estimated_fare, payment_status, booking_status, assigned_driver_id, source, manual_created, mollie_checkout_url, pricing_mode, price_override_enabled, price_override_reason, matched_fixed_route, calculated_fare, payment_method, cash_amount_due, cash_collection_status")
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
 
   if (filter === "niet-toegewezen") query = query.eq("booking_status", "unassigned")
@@ -148,6 +151,9 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
             {booking.booking_status === "no_show_reported" || booking.booking_status === "issue_reported" ? (
               <AdminExceptionActions bookingId={booking.id} />
             ) : null}
+            <div className="mt-2">
+              <DeleteBookingButton bookingId={booking.id} reference={booking.reference || booking.id} />
+            </div>
           </article>
         ))}
       </div>
@@ -231,6 +237,9 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
                   {booking.booking_status === "no_show_reported" || booking.booking_status === "issue_reported" ? (
                     <AdminExceptionActions bookingId={booking.id} />
                   ) : null}
+                  <div className="mt-2">
+                    <DeleteBookingButton bookingId={booking.id} reference={booking.reference || booking.id} />
+                  </div>
                 </td>
               </tr>
             ))}

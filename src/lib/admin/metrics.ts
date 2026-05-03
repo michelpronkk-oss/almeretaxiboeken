@@ -129,26 +129,29 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     "id, reference, customer_name, pickup_address, destination_address, pickup_date, pickup_time, estimated_fare, vehicle_type, passengers, booking_status, payment_status, assigned_driver_id, created_at, payment_method, cash_amount_due"
 
   const [paidRes, allRes, driversRes] = await Promise.all([
-    // Paid bookings only — for revenue + latest list
+    // Paid bookings only — for revenue + latest list (exclude soft-deleted)
     supabase
       .from("bookings")
       .select(SELECT)
       .eq("payment_status", "paid")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false }),
 
-    // All bookings — for operational planning + failed counts
+    // All bookings — for operational planning + failed counts (exclude soft-deleted)
     supabase
       .from("bookings")
       .select(SELECT)
+      .is("deleted_at", null)
       .order("pickup_date", { ascending: true })
       .order("pickup_time", { ascending: true }),
 
-    // Active, approved drivers
+    // Active, approved, non-deleted drivers
     supabase
       .from("drivers")
       .select("id", { count: "exact", head: true })
       .eq("active", true)
-      .eq("approval_status", "approved"),
+      .eq("approval_status", "approved")
+      .is("deleted_at", null),
   ])
 
   const paid: BookingRow[] = (paidRes.data as BookingRow[] | null) ?? []

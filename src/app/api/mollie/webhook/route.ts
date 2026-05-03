@@ -30,8 +30,8 @@ function eventTypeFromStatus(status: string): string {
   return "mollie_status_updated"
 }
 
-function bookingStatusFromPayment(status: string): string {
-  if (status === "paid") return "unassigned"
+function bookingStatusFromPayment(status: string, hasAssignedDriver: boolean): string {
+  if (status === "paid") return hasAssignedDriver ? "assigned" : "unassigned"
   if (status === "canceled") return "cancelled"
   return "pending_payment"
 }
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id, reference, payment_status")
+    .select("id, reference, payment_status, assigned_driver_id")
     .eq("mollie_payment_id", paymentId)
     .maybeSingle()
 
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
   }
 
   const nextPaymentStatus = mapMollieToBookingPaymentStatus(payment.status)
-  const nextBookingStatus = bookingStatusFromPayment(payment.status)
+  const nextBookingStatus = bookingStatusFromPayment(payment.status, !!booking.assigned_driver_id)
 
   await supabase
     .from("bookings")

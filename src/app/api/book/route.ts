@@ -3,6 +3,7 @@ import { isTooSoonForPublicBooking } from "@/lib/operations"
 import { matchFixedRoute } from "@/lib/taxi/fixed-routes"
 import { sendEmail } from "@/lib/email/send"
 import { cashBookingRequestEmail, internalCashBookingEmail } from "@/lib/email/templates"
+import { findDefaultOwnerDriver, assignDefaultOwnerToBooking, preAssignDefaultOwnerOnline } from "@/lib/default-owner-assignment"
 
 interface BookingBody {
   origin: string
@@ -121,6 +122,11 @@ export async function POST(request: Request) {
       actor_type: "customer",
       note: "Contante boeking aangemaakt via website.",
     })
+
+    const defaultOwner = await findDefaultOwnerDriver()
+    if (defaultOwner) {
+      await assignDefaultOwnerToBooking(cashBooking.id, defaultOwner.id, "assigned")
+    }
 
     // Customer confirmation email
     if (email) {
@@ -293,6 +299,11 @@ export async function POST(request: Request) {
     actor_type: "system",
     note: `Mollie payment id: ${paymentId}`,
   })
+
+  const defaultOwnerOnline = await findDefaultOwnerDriver()
+  if (defaultOwnerOnline) {
+    await preAssignDefaultOwnerOnline(insertedBooking.id, defaultOwnerOnline.id)
+  }
 
   return Response.json({
     bookingId: insertedBooking.id,

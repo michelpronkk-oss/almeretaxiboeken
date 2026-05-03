@@ -5,6 +5,7 @@ import { manualPaymentLinkEmail, cashBookingRequestEmail } from "@/lib/email/tem
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 import { computeRouteFare } from "@/lib/taxi/pricing"
 import { matchFixedRoute } from "@/lib/taxi/fixed-routes"
+import { findDefaultOwnerDriver, assignDefaultOwnerToBooking, preAssignDefaultOwnerOnline } from "@/lib/default-owner-assignment"
 
 interface CreatePaymentBody {
   customerName?: string
@@ -188,6 +189,11 @@ export async function POST(request: NextRequest) {
       note: `${noteBase} Betaalmethode: contant. Te innen: €${finalFare.toFixed(2)}.`,
     })
 
+    const defaultOwnerCash = await findDefaultOwnerDriver()
+    if (defaultOwnerCash) {
+      await assignDefaultOwnerToBooking(booking.id, defaultOwnerCash.id, "assigned")
+    }
+
     let emailSent = false
     if (wantsEmail && customerEmail) {
       const tmpl = cashBookingRequestEmail({
@@ -247,6 +253,11 @@ export async function POST(request: NextRequest) {
       actor_type: "admin",
       note: `${noteBase} Opgeslagen zonder betaling (interne uitzondering).`,
     })
+
+    const defaultOwnerNoPayment = await findDefaultOwnerDriver()
+    if (defaultOwnerNoPayment) {
+      await assignDefaultOwnerToBooking(booking.id, defaultOwnerNoPayment.id, "assigned")
+    }
 
     return Response.json({
       success: true,
@@ -350,6 +361,11 @@ export async function POST(request: NextRequest) {
     actor_type: "admin",
     note: `Mollie payment id: ${paymentId}. Eindprijs: €${finalFare.toFixed(2)}.`,
   })
+
+  const defaultOwnerOnline = await findDefaultOwnerDriver()
+  if (defaultOwnerOnline) {
+    await preAssignDefaultOwnerOnline(booking.id, defaultOwnerOnline.id)
+  }
 
   let emailSent = false
   let emailWarning = ""
