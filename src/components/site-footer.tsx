@@ -35,7 +35,7 @@ export function SiteFooter() {
               particulier vervoer.
             </p>
             <p className="mt-3 text-xs text-[#7F776E]">
-              Vaste tarieven • Veilig online betalen • Almere en omgeving
+              Vaste tarieven • Online of contant betalen • Almere en omgeving
             </p>
           </div>
 

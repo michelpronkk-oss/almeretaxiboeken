@@ -31,7 +31,7 @@ const services = [
   },
   {
     title: "Taxi Almere Schiphol",
-    description: "Directe verbinding van Almere naar Schiphol. Vaste prijs, online betalen en direct bevestigd.",
+    description: "Directe verbinding van Almere naar Schiphol. Vaste prijs, duidelijke ritopgave en keuze uit online of contant betalen.",
     href: "/taxi-almere-schiphol",
     icon: Plane,
   },
@@ -45,11 +45,11 @@ export default function DienstenPage() {
         <h1 className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">Taxi in Almere voor elke rit</h1>
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#B7AEA2]">
           AlmereTaxiBoeken verzorgt luchthavenvervoer, zakelijk taxivervoer en particulier vervoer.
-          Kies de dienst die past bij uw rit en reserveer direct met online betaling.
+          Kies de dienst die past bij uw rit en reserveer direct via de ritmodule.
         </p>
       </section>
 
-      <BookingBlock title="Direct uw rit berekenen" subtitle="Plan uw rit en ontvang meteen een duidelijke prijs. Uw reservering wordt definitief na betaling." />
+      <BookingBlock title="Direct uw rit berekenen" subtitle="Plan uw rit en ontvang meteen een duidelijke prijs. Kies na de prijsberekening hoe u wilt betalen: online of contant." />
 
       <section className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-4 md:grid-cols-2">

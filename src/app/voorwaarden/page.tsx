@@ -25,7 +25,7 @@ const sections: Array<{
     bullets: [
       "Een boeking wordt geplaatst met ophaaladres, bestemmingsadres, datum/tijd en contactgegevens.",
       "De klant is verantwoordelijk voor het correct invullen van gegevens.",
-      "Een boeking is bevestigd na succesvolle online betaling, tenzij uitdrukkelijk anders is afgesproken.",
+      "Bij online betaling is een boeking bevestigd na succesvolle betaling. Bij contant betalen is de rit aangevraagd en worden de ritgegevens per e-mail verstuurd.",
       "Na betaling ontvangt de klant bevestiging of boekingsgegevens.",
     ],
   },
@@ -41,10 +41,11 @@ const sections: Array<{
   {
     title: "4. Betaling",
     bullets: [
-      "Online betalingen worden verwerkt via Mollie.",
-      "Een rit is pas definitief gereserveerd na succesvolle betaling, tenzij anders afgesproken.",
-      "De verwerking van een betalingsstatus kan kort duren.",
-      "Bij mislukte of geannuleerde betaling kan de boeking niet worden bevestigd.",
+      "Online betalingen worden verwerkt via Mollie (iDEAL, creditcard en andere methoden).",
+      "Betaling kan ook contant bij de chauffeur plaatsvinden, indien gekozen bij de boeking.",
+      "Bij online betaling is de rit definitief gereserveerd na succesvolle betaling.",
+      "Bij contant betalen is de rit aangevraagd en betaalt de klant het ritbedrag aan de chauffeur.",
+      "Bij mislukte of geannuleerde online betaling kan de boeking niet worden bevestigd.",
     ],
   },
   {
@@ -133,7 +134,7 @@ export default function VoorwaardenPage() {
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-[#B7AEA2]">
             Deze voorwaarden gelden voor het gebruik van de website, het berekenen van ritprijzen,
-            het boeken van ritten en online betalen via AlmereTaxiBoeken.
+            het boeken van ritten en de betaalwijzen bij AlmereTaxiBoeken.
           </p>
           <p className="mt-3 text-xs text-[#7F776E]">Laatst bijgewerkt: 2026</p>
         </div>

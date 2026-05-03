@@ -5,19 +5,20 @@ import { MarketingPageLayout } from "@/components/marketing-page-layout"
 export const metadata: Metadata = {
   title: "Veelgestelde vragen | AlmereTaxiBoeken",
   description:
-    "Antwoorden over ritprijzen, online betalen, luchthavenvervoer, taxibus en reserveringen bij AlmereTaxiBoeken.",
+    "Antwoorden over ritprijzen, betaalmethodes, contant betalen, luchthavenvervoer, taxibus en reserveringen bij AlmereTaxiBoeken.",
 }
 
 const faqs = [
-  ["Hoe wordt de ritprijs berekend?", "Op basis van afstand, reistijd en gekozen voertuigtype."],
-  ["Kan ik online betalen?", "Ja, betaling verloopt veilig via Mollie."],
-  ["Kan ik naar Schiphol boeken?", "Ja, wij rijden dagelijks vanaf Almere naar Schiphol."],
-  ["Kan ik een taxibus boeken?", "Ja, voor 5 t/m 8 personen kiest u taxibus."],
-  ["Is de prijs direct definitief na betaling?", "Ja, na succesvolle betaling is uw reservering bevestigd."],
+  ["Hoe wordt de ritprijs berekend?", "Op basis van afstand, reistijd en gekozen voertuigtype. Voor bekende routes zoals Schiphol kunnen vaste tarieven worden toegepast."],
+  ["Kan ik contant betalen?", "Ja. Na het berekenen van uw ritprijs kiest u online betalen of contant betalen bij de chauffeur. Bij contant betalen wordt de rit als aanvraag verwerkt en betaalt u het bedrag tijdens de rit."],
+  ["Kan ik online betalen?", "Ja, online betaling verloopt veilig via Mollie met iDEAL, creditcard en andere gangbare betaalmethoden."],
+  ["Wanneer is mijn rit bevestigd?", "Bij online betaling is uw rit bevestigd zodra de betaling is ontvangen. Bij contant betalen ontvangt u de ritgegevens per e-mail en is de rit ingepland."],
+  ["Kan ik naar Schiphol boeken?", "Ja, wij rijden dagelijks vanuit Almere naar Schiphol. Voor deze route gelden vaste tarieven die u vooraf ziet."],
+  ["Kan ik een taxibus boeken?", "Ja, voor 5 tot en met 8 personen kiest u de taxibus. De prijs wordt aangepast aan het voertuigtype."],
   ["Kan ik zakelijk vervoer aanvragen?", "Ja, wij verzorgen ook zakelijke ritten en vaste trajecten."],
-  ["Kan ik mijn rit wijzigen?", "Wijzigingen verlopen via telefoon of WhatsApp."],
-  ["Wat gebeurt er na betaling?", "U ontvangt een bevestiging per e-mail en wij plannen uw rit in."],
-  ["Kan ik via WhatsApp contact opnemen?", "Ja, u kunt ons direct via WhatsApp bereiken."],
+  ["Kan ik mijn rit wijzigen?", "Wijzigingen verlopen via telefoon of WhatsApp. Neem zo snel mogelijk contact op."],
+  ["Wat ontvang ik na mijn boeking?", "U ontvangt een bevestiging per e-mail met de ritgegevens. Bij online betaling is uw rit direct definitief."],
+  ["Kan ik via WhatsApp contact opnemen?", "Ja, u kunt ons direct via WhatsApp bereiken voor vragen, wijzigingen of last-minute ritten."],
 ]
 
 export default function VeelgesteldeVragenPage() {
@@ -39,7 +40,7 @@ export default function VeelgesteldeVragenPage() {
       <section className="mx-auto max-w-6xl px-6 pb-16">
         <div className="rounded-2xl border border-[#292520] bg-[#151311] p-6">
           <h2 className="text-2xl font-semibold">Klaar om uw rit te reserveren?</h2>
-          <p className="mt-2 text-sm text-[#B7AEA2]">Bereken direct uw ritprijs en reserveer online met veilige betaling.</p>
+          <p className="mt-2 text-sm text-[#B7AEA2]">Bereken direct uw ritprijs en kies hoe u wilt betalen.</p>
           <Link href="/#contact" className="mt-4 inline-flex rounded-lg border border-[#3A2D1F] px-5 py-2.5 text-sm font-semibold text-[#D6B58A] transition-colors hover:bg-[#1B1815]">Rit reserveren</Link>
         </div>
       </section>

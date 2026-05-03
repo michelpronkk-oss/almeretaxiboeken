@@ -6,12 +6,12 @@ import { MarketingPageLayout } from "@/components/marketing-page-layout"
 export const metadata: Metadata = {
   title: "Taxi Almere naar Schiphol | Direct prijs berekenen",
   description:
-    "Boek uw taxi van Almere naar Schiphol. Bereken direct uw ritprijs, betaal veilig online en reserveer betrouwbaar luchthavenvervoer.",
+    "Boek uw taxi van Almere naar Schiphol. Bereken direct uw ritprijs, kies online of contant betalen en reserveer betrouwbaar luchthavenvervoer.",
 }
 
 const faq = [
   ["Is dit ook geschikt voor zakelijke reizigers?", "Ja, zowel particuliere als zakelijke reizigers boeken hier direct hun rit."],
-  ["Kan ik vooraf online betalen?", "Ja, u betaalt veilig online. Na betaling is uw rit bevestigd."],
+  ["Kan ik online of contant betalen?", "Beide opties zijn beschikbaar. U kiest uw betaalmethode na de prijsberekening. Bij online betaling is uw rit direct bevestigd."],
   ["Is de prijs vooraf duidelijk?", "Ja, u ontvangt direct een duidelijke prijs op basis van route en tijd."],
 ]
 
@@ -26,12 +26,12 @@ export default function TaxiAlmereSchipholPage() {
           duidelijke planning. Ideaal voor vakantie en zakelijke reizen.
         </p>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#B7AEA2]">
-          U boekt vooraf, betaalt online en vertrekt met rust. De prijs is vooraf zichtbaar en geschikt voor
+          U boekt vooraf, kiest uw betaalmethode en vertrekt met rust. De prijs is vooraf zichtbaar en geschikt voor
           particuliere en zakelijke reizigers.
         </p>
       </section>
 
-      <BookingBlock title="Bereken direct uw rit Almere - Schiphol" subtitle="Vooraf online betalen, duidelijke prijs en direct uw reservering rond." />
+      <BookingBlock title="Bereken direct uw rit Almere - Schiphol" subtitle="Duidelijke vaste prijs, keuze uit online of contant betalen, direct uw reservering rond." />
 
       <section className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-4 md:grid-cols-3">
@@ -41,7 +41,7 @@ export default function TaxiAlmereSchipholPage() {
           </article>
           <article className="rounded-2xl border border-[#292520] bg-[#151311] p-6">
             <h2 className="text-lg font-semibold">Hoe werkt het</h2>
-            <p className="mt-3 text-sm text-[#B7AEA2]">Route invullen, ritprijs bekijken, veilig betalen en direct bevestigd.</p>
+            <p className="mt-3 text-sm text-[#B7AEA2]">Route invullen, ritprijs bekijken, betaalmethode kiezen en uw rit is geregeld.</p>
           </article>
           <article className="rounded-2xl border border-[#292520] bg-[#151311] p-6">
             <h2 className="text-lg font-semibold">Zakelijk naar Schiphol</h2>
@@ -90,9 +90,9 @@ export default function TaxiAlmereSchipholPage() {
               </p>
             </div>
             <div className="rounded-2xl border border-[#292520] bg-[#151311] p-5">
-              <p className="text-lg font-bold text-[#F5F1E8]">Direct bevestigd</p>
+              <p className="text-lg font-bold text-[#F5F1E8]">Snel geregeld</p>
               <p className="mt-1 text-xs text-[#7F776E]">
-                E-mailbevestiging zodra uw betaling is geslaagd.
+                Na betaling of aanvraag ontvangt u direct de ritgegevens per e-mail.
               </p>
             </div>
           </div>

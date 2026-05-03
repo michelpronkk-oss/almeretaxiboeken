@@ -26,8 +26,8 @@ const features = [
   },
   {
     icon: ShieldCheck,
-    title: "Veilig online betalen",
-    desc: "iDEAL of creditcard. Na betaling ontvangt u direct uw bevestiging per e-mail.",
+    title: "Betalen naar keuze",
+    desc: "Online via iDEAL of creditcard, of contant bij de chauffeur. Uw ritgegevens direct per e-mail.",
   },
   {
     icon: Car,
@@ -59,7 +59,7 @@ export default function ParticulierVervoerPage() {
 
       <BookingBlock
         title="Bereken uw ritprijs"
-        subtitle="Bekijk direct uw prijs en reserveer veilig online wanneer het u uitkomt."
+        subtitle="Bekijk direct uw prijs en kies uw betaalmethode."
       />
 
       {/* Features */}

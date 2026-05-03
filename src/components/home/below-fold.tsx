@@ -29,10 +29,10 @@ const fade = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, trans
 const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.09 } } }
 
 const steps = [
-  { num: "01", icon: MapPin,       title: "Vul uw route in",     desc: "Vertrekpunt en bestemming via onze slimme routemodule." },
-  { num: "02", icon: BadgeEuro,    title: "Bekijk uw ritprijs",  desc: "Direct een vaste prijs op basis van route en reistijd." },
-  { num: "03", icon: ShieldCheck,  title: "Betaal veilig online", desc: "iDEAL, Bancontact of creditcard. Snel en beveiligd." },
-  { num: "04", icon: CheckCircle2, title: "Rit bevestigd",       desc: "Directe bevestiging per e-mail. Uw chauffeur is op tijd." },
+  { num: "01", icon: MapPin,       title: "Vul uw route in",         desc: "Kies vertrekpunt, bestemming, datum, tijd en het aantal passagiers." },
+  { num: "02", icon: BadgeEuro,    title: "Bekijk uw ritprijs",       desc: "U ziet direct de ritprijs op basis van route, reistijd en voertuigtype." },
+  { num: "03", icon: ShieldCheck,  title: "Kies uw betaalmethode",   desc: "Betaal veilig online of kies voor contant betalen bij de chauffeur." },
+  { num: "04", icon: CheckCircle2, title: "Rit geregeld",             desc: "Na betaling of aanvraag ontvangt u direct de ritgegevens per e-mail." },
 ]
 
 const services = [
@@ -52,16 +52,16 @@ const popularRoutes = [
 
 const pillars = [
   { icon: BadgeEuro,   title: "Duidelijke ritprijs vooraf", desc: "Geen taxameter, geen verrassingen. U weet exact wat u betaalt voor de rit." },
-  { icon: ShieldCheck, title: "Veilig online betalen",     desc: "Betaal via iDEAL of creditcard. Beveiligd verwerkt via Mollie." },
-  { icon: Plane,       title: "Luchthaven en zakelijk",    desc: "Schiphol, Rotterdam Airport en Eindhoven Airport vanuit Almere." },
-  { icon: MapPin,      title: "Almere en omgeving",        desc: "Lokale expertise voor ritten binnen Almere en de Randstad." },
-  { icon: Car,         title: "Taxi of taxibus",           desc: "Sedan voor 1 tot 4 personen, comfortabele taxibus voor 5 tot 8 personen." },
-  { icon: Zap,         title: "Direct reserveren",         desc: "Online boeken zonder bellen. Bevestiging direct per e-mail." },
+  { icon: ShieldCheck, title: "Betalen naar keuze",         desc: "Betaal online via iDEAL of creditcard, of kies contant betalen bij de chauffeur." },
+  { icon: Plane,       title: "Luchthaven en zakelijk",     desc: "Schiphol, Rotterdam Airport en Eindhoven Airport vanuit Almere." },
+  { icon: MapPin,      title: "Almere en omgeving",         desc: "Lokale expertise voor ritten binnen Almere en de Randstad." },
+  { icon: Car,         title: "Taxi of taxibus",            desc: "Sedan voor 1 tot 4 personen, comfortabele taxibus voor 5 tot 8 personen." },
+  { icon: Zap,         title: "Direct reserveren",          desc: "Online boeken zonder bellen. Ritgegevens direct per e-mail." },
 ]
 
 const trustSignals = [
   { icon: Star,        label: "4,9/5",               sublabel: "gemiddelde beoordeling" },
-  { icon: ShieldCheck, label: "Veilig betalen",       sublabel: "iDEAL & creditcard" },
+  { icon: ShieldCheck, label: "Flexibel betalen",     sublabel: "online of contant" },
   { icon: BadgeEuro,   label: "Vaste tarieven",       sublabel: "geen verborgen kosten" },
   { icon: Users,       label: "Zakelijk & particulier", sublabel: "voor elke reiziger" },
 ]
@@ -228,9 +228,9 @@ export default function BelowFold() {
           <h2 className="text-3xl font-bold tracking-tight text-[#F5F1E8] sm:text-4xl">Duidelijk voor vertrek</h2>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             {[
-              { q: "Zijn de tarieven vooraf bekend?",       a: "Ja. U ontvangt vooraf een vaste prijs op basis van route, tijd en voertuig." },
-              { q: "Wanneer is mijn rit bevestigd?",        a: "Uw rit is bevestigd zodra de betaling succesvol is afgerond." },
-              { q: "Rijden jullie ook zakelijke ritten?",   a: "Ja. Wij verzorgen representatief vervoer voor zakelijke en particuliere klanten." },
+              { q: "Zijn de tarieven vooraf bekend?",       a: "Ja. U ontvangt vooraf een vaste prijs op basis van route, tijd en voertuig. Vaste routeprijzen worden direct weergegeven." },
+              { q: "Kan ik contant betalen?",               a: "Ja. Na het berekenen van uw ritprijs kiest u online betalen of contant bij de chauffeur. Bij contant betalen wordt de rit als aanvraag verwerkt." },
+              { q: "Wanneer is mijn rit bevestigd?",        a: "Bij online betaling is uw rit direct bevestigd. Bij contant betalen ontvangt u de ritgegevens en is de rit ingepland." },
               { q: "Kan ik contact opnemen via WhatsApp?",  a: "Ja. Voor vragen of ondersteuning kunt u ons direct via WhatsApp bereiken." },
             ].map((item) => (
               <div key={item.q} className="rounded-2xl border border-[#292520] bg-[#151311] p-5">
@@ -256,7 +256,7 @@ export default function BelowFold() {
                 <div className="flex flex-col gap-5">
                   <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#D6B58A]">Rit boeken</p>
                   <h2 className="font-display text-3xl font-black leading-tight tracking-tight text-[#F5F1E8] sm:text-4xl lg:text-5xl">Klaar om te rijden?</h2>
-                  <p className="max-w-sm text-[15px] leading-relaxed text-[#B7AEA2]">Vul uw rit in en ontvang direct een vaste prijs. Wij bevestigen uw rit na succesvolle betaling.</p>
+                  <p className="max-w-sm text-[15px] leading-relaxed text-[#B7AEA2]">Vul uw rit in en ontvang direct een vaste prijs. Kies daarna online betalen of contant bij de chauffeur.</p>
                   <a href={`tel:${PHONE}`} className="inline-flex w-fit items-center gap-2 rounded-md border border-[#D6B58A]/50 bg-transparent px-6 py-2.5 text-sm font-semibold text-[#D6B58A] transition-colors hover:bg-[#D6B58A]/[0.1]">
                     <Phone className="size-3.5" /> Liever bellen? {PHONE_DISPLAY}
                   </a>

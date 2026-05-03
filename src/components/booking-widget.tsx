@@ -397,8 +397,8 @@ export const BookingWidget = memo(function BookingWidget() {
       </Button>
 
       <p className="mt-3 text-center text-[11px] leading-relaxed text-[#8F877D] tracking-wide">
-        <span className="hidden sm:inline">4,9/5 beoordeling · Pin · Creditcard · Contant</span>
-        <span className="sm:hidden">4,9/5 · Pin · Creditcard · Contant</span>
+        <span className="hidden sm:inline">4,9/5 beoordeling · Online of contant betalen · Taxi & taxibus</span>
+        <span className="sm:hidden">4,9/5 · Online of contant · Taxi & taxibus</span>
       </p>
     </div>
   )

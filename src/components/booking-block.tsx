@@ -7,7 +7,7 @@ interface BookingBlockProps {
 
 export function BookingBlock({
   title = "Bereken direct uw ritprijs",
-  subtitle = "Vul uw ritgegevens in, bekijk direct uw prijs en rond uw reservering veilig online af.",
+  subtitle = "Vul uw ritgegevens in, bekijk direct uw prijs en kies uw betaalmethode.",
 }: BookingBlockProps) {
   return (
     <section className="border-y border-[#1F1C18] bg-[#0D0C0B] py-14">

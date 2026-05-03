@@ -18,8 +18,8 @@ const features = [
   },
   {
     icon: ShieldCheck,
-    title: "Veilig online factureren",
-    desc: "Betaling vooraf via iDEAL of creditcard. Bonnetje per e-mail.",
+    title: "Eenvoudig betalen",
+    desc: "Betaal online via iDEAL of creditcard, of kies contant bij de chauffeur. Bonnetje per e-mail.",
   },
   {
     icon: BadgeEuro,
@@ -58,14 +58,13 @@ export default function ZakelijkVervoerPage() {
           punctueel en zonder omwegen.
         </p>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#B7AEA2]">
-          Efficiënte ritten naar Schiphol en alle OV-knooppunten. Boek online, betaal
-          veilig en ontvang direct uw bevestiging.
+          Efficiënte ritten naar Schiphol en alle OV-knooppunten. Boek online en ontvang direct uw ritgegevens na betaling of aanvraag.
         </p>
       </section>
 
       <BookingBlock
         title="Direct zakelijk vervoer reserveren"
-        subtitle="Bereken direct uw ritprijs en reserveer veilig online voor uzelf of een collega."
+        subtitle="Bereken direct uw ritprijs en kies uw betaalmethode."
       />
 
       <section className="mx-auto max-w-6xl px-6 py-16">

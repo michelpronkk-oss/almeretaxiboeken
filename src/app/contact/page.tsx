@@ -34,7 +34,7 @@ export default function ContactPage() {
         </div>
 
         <p className="mt-6 text-sm text-[#B7AEA2]">
-          Voor een definitieve reservering gebruikt u de ritmodule en betaalt u veilig online.
+          Voor een definitieve reservering gebruikt u de ritmodule en kiest u uw betaalmethode: online of contant bij de chauffeur.
         </p>
       </section>
 
