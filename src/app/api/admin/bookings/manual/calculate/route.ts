@@ -1,6 +1,7 @@
-﻿import { NextRequest } from "next/server"
+import { NextRequest } from "next/server"
 import { isAdminAuthenticated } from "@/lib/admin-auth"
 import { computeRouteFare } from "@/lib/taxi/pricing"
+import { matchFixedRoute } from "@/lib/taxi/fixed-routes"
 
 interface ManualCalculateBody {
   pickupAddress?: string
@@ -8,6 +9,7 @@ interface ManualCalculateBody {
   pickup?: string | { address?: string; placeId?: string }
   destination?: string | { address?: string; placeId?: string }
   passengers?: number
+  vehicleType?: "taxi" | "taxibus"
 }
 
 export async function POST(request: NextRequest) {
@@ -35,25 +37,41 @@ export async function POST(request: NextRequest) {
           ? { address: destinationAddress }
           : undefined
   const passengers = Number(body.passengers || 1)
+  const vehicleType = body.vehicleType
 
   if (!pickup || !destination) {
     return Response.json({ success: false, message: "Vertrekadres en bestemming zijn verplicht." }, { status: 400 })
   }
 
   try {
-    const fare = await computeRouteFare({
-      origin: pickup,
-      destination,
-      passengers,
-    })
+    const fare = await computeRouteFare({ origin: pickup, destination, passengers, vehicleType })
 
-    return Response.json(fare)
+    const puStr = typeof pickup === "string" ? pickup : pickup.address || pickupAddress
+    const dStr = typeof destination === "string" ? destination : destination.address || destinationAddress
+    const fixedMatch = matchFixedRoute(puStr, dStr)
+
+    const fixedFare = fixedMatch
+      ? fare.vehicleType === "taxibus"
+        ? fixedMatch.taxibusPrice
+        : fixedMatch.taxiPrice
+      : null
+
+    const pricingMode = fixedMatch ? "fixed_route" : "metered"
+    const finalFare = fixedFare ?? fare.estimatedFare
+
+    return Response.json({
+      ...fare,
+      success: true,
+      estimatedFare: finalFare,
+      calculatedFare: fare.estimatedFare,
+      pricingMode,
+      matchedFixedRoute: fixedMatch?.routeLabel ?? null,
+      fixedRouteTaxiPrice: fixedMatch?.taxiPrice ?? null,
+      fixedRouteTaxibusPrice: fixedMatch?.taxibusPrice ?? null,
+    })
   } catch (error) {
     return Response.json(
-      {
-        success: false,
-        message: error instanceof Error ? error.message : "Prijsberekening mislukt.",
-      },
+      { success: false, message: error instanceof Error ? error.message : "Prijsberekening mislukt." },
       { status: 400 }
     )
   }

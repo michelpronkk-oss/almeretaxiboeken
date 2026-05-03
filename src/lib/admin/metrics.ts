@@ -60,6 +60,12 @@ export interface DashboardMetrics {
   // Drivers
   activeDrivers: number
 
+  // Cash payment metrics
+  cashPendingCount: number
+  cashPendingAmount: number
+  cashCollectedCount: number
+  cashCollectedAmount: number
+
   // Lists
   latestPaidBookings: BookingRow[]
   todayBookings: BookingRow[]
@@ -108,6 +114,11 @@ function safeFare(row: BookingRow): number {
 
 const DONE_STATUSES = new Set(["completed", "cancelled", "canceled"])
 
+function safeCashFare(row: BookingRow): number {
+  const f = Number((row as BookingRow & { cash_amount_due?: number | null }).cash_amount_due)
+  return Number.isFinite(f) && f > 0 ? f : 0
+}
+
 // ── Main export ──────────────────────────────────────────────────────────────
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
@@ -115,7 +126,7 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   const { todayStr, weekStartStr, monthStartStr } = getAmsterdamDateStrings()
 
   const SELECT =
-    "id, reference, customer_name, pickup_address, destination_address, pickup_date, pickup_time, estimated_fare, vehicle_type, passengers, booking_status, payment_status, assigned_driver_id, created_at"
+    "id, reference, customer_name, pickup_address, destination_address, pickup_date, pickup_time, estimated_fare, vehicle_type, passengers, booking_status, payment_status, assigned_driver_id, created_at, payment_method, cash_amount_due"
 
   const [paidRes, allRes, driversRes] = await Promise.all([
     // Paid bookings only — for revenue + latest list
@@ -173,18 +184,35 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     ["failed", "canceled", "cancelled", "expired"].includes(r.payment_status ?? "")
   ).length
 
-  // ── Planning ─────────────────────────────────────────────────────────────
-  const unassignedCount = paid.filter(
+  // ── Cash metrics ─────────────────────────────────────────────────────────
+  const cashPending = (all as (BookingRow & { payment_method?: string | null; cash_amount_due?: number | null })[])
+    .filter((r) => r.payment_status === "cash_pending")
+  const cashCollected = (all as (BookingRow & { payment_method?: string | null; cash_amount_due?: number | null })[])
+    .filter((r) => r.payment_status === "cash_collected")
+
+  const cashPendingCount = cashPending.length
+  const cashPendingAmount = cashPending.reduce((s, r) => s + safeCashFare(r as BookingRow), 0)
+  const cashCollectedCount = cashCollected.length
+  const cashCollectedAmount = cashCollected.reduce((s, r) => s + safeCashFare(r as BookingRow), 0)
+
+  // ── Planning — includes cash_pending + cash_collected as confirmed ────────
+  const confirmedForPlanning = all.filter((r) =>
+    r.payment_status === "paid" ||
+    r.payment_status === "cash_pending" ||
+    r.payment_status === "cash_collected"
+  )
+
+  const unassignedCount = confirmedForPlanning.filter(
     (r) => !r.assigned_driver_id && !DONE_STATUSES.has(r.booking_status ?? "")
   ).length
 
-  const assignedCount = paid.filter(
+  const assignedCount = confirmedForPlanning.filter(
     (r) => r.assigned_driver_id && !DONE_STATUSES.has(r.booking_status ?? "")
   ).length
 
   const todayPlanningCount = all.filter((r) => r.pickup_date === todayStr).length
 
-  const upcomingCount = paid.filter(
+  const upcomingCount = confirmedForPlanning.filter(
     (r) =>
       (r.pickup_date ?? "") > todayStr && !DONE_STATUSES.has(r.booking_status ?? "")
   ).length
@@ -230,6 +258,10 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     taxiRevenue: taxiPaid.reduce((s, r) => s + safeFare(r), 0),
     taxibusRevenue: taxibusPaid.reduce((s, r) => s + safeFare(r), 0),
     activeDrivers,
+    cashPendingCount,
+    cashPendingAmount,
+    cashCollectedCount,
+    cashCollectedAmount,
     latestPaidBookings,
     todayBookings,
     hasNoPaidBookings: paid.length === 0,

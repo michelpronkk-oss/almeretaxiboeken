@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Menu, Phone, X } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 
 const PHONE = "+31853038136"
@@ -24,9 +25,35 @@ export function SiteHeader() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-[#1F1C18] bg-[rgba(8,8,7,0.92)] md:bg-[rgba(8,8,7,0.86)] md:backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="text-[15px] font-semibold tracking-tight">
-          <span className="text-[#F5F1E8]">AlmereTaxi</span>
-          <span className="text-[#D6B58A]">Boeken</span>
+        <Link href="/" className="flex items-center gap-2">
+          {/* Mobile: icon only */}
+          <Image
+            src="/logo-icon.png"
+            alt="Almere Taxi Boeken"
+            width={32}
+            height={32}
+            className="h-8 w-8 object-contain md:hidden"
+            priority
+          />
+          {/* Desktop: icon + wordmark */}
+          <Image
+            src="/logo-icon.png"
+            alt=""
+            width={32}
+            height={32}
+            aria-hidden="true"
+            className="hidden h-8 w-8 object-contain md:block"
+            priority
+          />
+          <Image
+            src="/logo-wordmark.png"
+            alt="Almere Taxi Boeken"
+            width={260}
+            height={52}
+            className="hidden h-[52px] w-auto object-contain md:block"
+            style={{ width: "auto" }}
+            priority
+          />
         </Link>
 
         <nav className="hidden items-center gap-7 text-sm md:flex">

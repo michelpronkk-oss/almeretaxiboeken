@@ -37,7 +37,7 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
 
   let query = supabase
     .from("bookings")
-    .select("id, reference, pickup_date, pickup_time, pickup_address, destination_address, customer_name, customer_phone, passengers, vehicle_type, estimated_fare, payment_status, booking_status, assigned_driver_id, source, manual_created, mollie_checkout_url")
+    .select("id, reference, pickup_date, pickup_time, pickup_address, destination_address, customer_name, customer_phone, passengers, vehicle_type, estimated_fare, payment_status, booking_status, assigned_driver_id, source, manual_created, mollie_checkout_url, pricing_mode, price_override_enabled, price_override_reason, matched_fixed_route, calculated_fare, payment_method, cash_amount_due, cash_collection_status")
     .order("created_at", { ascending: false })
 
   if (filter === "niet-toegewezen") query = query.eq("booking_status", "unassigned")
@@ -96,8 +96,39 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
             <p className="text-sm text-[#B7AEA2]">{booking.pickup_date || "-"} {booking.pickup_time || ""}</p>
             <p className="mt-2 text-sm text-[#B7AEA2]">{booking.pickup_address} {"->"} {booking.destination_address}</p>
             <p className="mt-1 text-sm text-[#8F877D]">{booking.customer_name || "-"} | {booking.customer_phone || "-"}</p>
-            <p className="mt-1 text-sm text-[#8F877D]">{formatPassengerVehicle(booking.passengers, booking.vehicle_type)} | {formatCurrencyEUR(booking.estimated_fare)}</p>
-            <p className="mt-1 text-xs text-[#8F877D]">{booking.payment_status} / {booking.booking_status}</p>
+            <p className="mt-1 text-sm text-[#8F877D]">
+              {formatPassengerVehicle(booking.passengers, booking.vehicle_type)} | {formatCurrencyEUR(booking.estimated_fare)}
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              {booking.pricing_mode === "fixed_route" ? (
+                <span className="rounded-full border border-[#D6B58A]/30 bg-[#D6B58A]/10 px-2 py-0.5 text-[10px] text-[#D6B58A]">Vaste routeprijs</span>
+              ) : null}
+              {booking.price_override_enabled ? (
+                <span className="rounded-full border border-[#B7AEA2]/30 bg-[#B7AEA2]/10 px-2 py-0.5 text-[10px] text-[#B7AEA2]">Handmatig aangepast</span>
+              ) : null}
+            </div>
+            {booking.matched_fixed_route ? (
+              <p className="text-[10px] text-[#8F877D]">{booking.matched_fixed_route}</p>
+            ) : null}
+            {booking.price_override_reason ? (
+              <p className="text-[10px] text-[#8F877D]">Reden: {booking.price_override_reason}</p>
+            ) : null}
+            {booking.calculated_fare && booking.calculated_fare !== booking.estimated_fare ? (
+              <p className="text-[10px] text-[#8F877D]">Berekend: {formatCurrencyEUR(booking.calculated_fare)}</p>
+            ) : null}
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <p className="text-xs text-[#8F877D]">{booking.payment_status} / {booking.booking_status}</p>
+              {booking.payment_method === "cash" ? (
+                <span className="rounded-full border border-[#22A06B]/30 bg-[#22A06B]/10 px-2 py-0.5 text-[10px] font-medium text-[#22A06B]">Contant</span>
+              ) : (
+                <span className="rounded-full border border-[#292520] bg-[#0D0C0B] px-2 py-0.5 text-[10px] text-[#B7AEA2]">Online</span>
+              )}
+            </div>
+            {booking.payment_method === "cash" && booking.cash_amount_due ? (
+              <p className="text-xs text-[#22A06B]">
+                {booking.cash_collection_status === "collected" ? "Contant ontvangen" : "Contant te innen"}: {formatCurrencyEUR(booking.cash_amount_due)}
+              </p>
+            ) : null}
 
             {booking.mollie_checkout_url && booking.payment_status !== "paid" ? (
               <div className="mt-2 flex items-center gap-2">
@@ -146,8 +177,43 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
                 <td className="px-3 py-3 text-[#B7AEA2]">{booking.pickup_date || "-"} {booking.pickup_time || ""}</td>
                 <td className="px-3 py-3 text-[#B7AEA2]"><div>{booking.pickup_address}</div><div className="text-[#8F877D]">{booking.destination_address}</div></td>
                 <td className="px-3 py-3 text-[#B7AEA2]"><div>{booking.customer_name || "-"}</div><div className="text-[#8F877D]">{booking.customer_phone || "-"}</div></td>
-                <td className="px-3 py-3 text-[#B7AEA2]">{formatPassengerVehicle(booking.passengers, booking.vehicle_type)}<br />{formatCurrencyEUR(booking.estimated_fare)}</td>
-                <td className="px-3 py-3 text-[#B7AEA2]">{booking.payment_status}<br />{booking.booking_status}</td>
+                <td className="px-3 py-3 text-[#B7AEA2]">
+                  <div>{formatPassengerVehicle(booking.passengers, booking.vehicle_type)}</div>
+                  <div className="font-medium text-[#F5F1E8]">{formatCurrencyEUR(booking.estimated_fare)}</div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {booking.pricing_mode === "fixed_route" ? (
+                      <span className="rounded-full border border-[#D6B58A]/30 bg-[#D6B58A]/10 px-2 py-0.5 text-[10px] text-[#D6B58A]">Vaste routeprijs</span>
+                    ) : null}
+                    {booking.price_override_enabled ? (
+                      <span className="rounded-full border border-[#B7AEA2]/30 bg-[#B7AEA2]/10 px-2 py-0.5 text-[10px] text-[#B7AEA2]">Handmatig</span>
+                    ) : null}
+                  </div>
+                  {booking.matched_fixed_route ? (
+                    <div className="text-[10px] text-[#8F877D]">{booking.matched_fixed_route}</div>
+                  ) : null}
+                  {booking.price_override_reason ? (
+                    <div className="text-[10px] text-[#8F877D]">Reden: {booking.price_override_reason}</div>
+                  ) : null}
+                  {booking.calculated_fare && booking.calculated_fare !== booking.estimated_fare ? (
+                    <div className="text-[10px] text-[#8F877D]">Calc: {formatCurrencyEUR(booking.calculated_fare)}</div>
+                  ) : null}
+                </td>
+                <td className="px-3 py-3 text-[#B7AEA2]">
+                  <div>{booking.payment_status}</div>
+                  <div>{booking.booking_status}</div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {booking.payment_method === "cash" ? (
+                      <span className="rounded-full border border-[#22A06B]/30 bg-[#22A06B]/10 px-2 py-0.5 text-[10px] font-medium text-[#22A06B]">Contant</span>
+                    ) : (
+                      <span className="rounded-full border border-[#292520] bg-[#0D0C0B] px-2 py-0.5 text-[10px] text-[#B7AEA2]">Online</span>
+                    )}
+                  </div>
+                  {booking.payment_method === "cash" && booking.cash_amount_due ? (
+                    <div className="text-[10px] font-medium text-[#22A06B]">
+                      {booking.cash_collection_status === "collected" ? "Ontvangen" : "Te innen"}: {formatCurrencyEUR(booking.cash_amount_due)}
+                    </div>
+                  ) : null}
+                </td>
                 <td className="px-3 py-3 text-[#B7AEA2]">
                   {booking.mollie_checkout_url && booking.payment_status !== "paid" ? (
                     <div className="space-y-2">

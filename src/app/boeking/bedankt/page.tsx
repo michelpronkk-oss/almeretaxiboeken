@@ -10,7 +10,7 @@ type SearchParams = Promise<{
   id?: string
 }>
 
-type ViewStatus = "paid" | "open" | "pending" | "failed" | "canceled" | "expired" | "unknown"
+type ViewStatus = "paid" | "cash" | "open" | "pending" | "failed" | "canceled" | "expired" | "unknown"
 
 function bookingStatusFromPayment(status: string | undefined): string {
   if (status === "paid") return "unassigned"
@@ -19,6 +19,14 @@ function bookingStatusFromPayment(status: string | undefined): string {
 }
 
 function statusCopy(status: ViewStatus) {
+  if (status === "cash") {
+    return {
+      title: "Rit aangevraagd",
+      body: "Uw rit is ontvangen. U betaalt contant bij de chauffeur.",
+      sub: "Bewaar uw referentienummer. De planning kan contact opnemen bij vragen.",
+    }
+  }
+
   if (status === "paid") {
     return {
       title: "Boeking bevestigd",
@@ -70,6 +78,7 @@ export default async function BookingThanksPage({ searchParams }: { searchParams
         id: string
         reference: string
         payment_status: string
+        payment_method: string | null
         mollie_payment_id: string | null
         estimated_fare: number | null
       }
@@ -78,19 +87,60 @@ export default async function BookingThanksPage({ searchParams }: { searchParams
   if (bookingId) {
     const { data } = await supabase
       .from("bookings")
-      .select("id, reference, payment_status, mollie_payment_id, estimated_fare")
+      .select("id, reference, payment_status, payment_method, mollie_payment_id, estimated_fare")
       .eq("id", bookingId)
       .maybeSingle()
     booking = data
   } else if (reference) {
     const { data } = await supabase
       .from("bookings")
-      .select("id, reference, payment_status, mollie_payment_id, estimated_fare")
+      .select("id, reference, payment_status, payment_method, mollie_payment_id, estimated_fare")
       .eq("reference", reference)
       .maybeSingle()
     booking = data
   }
 
+  // Cash booking: skip Mollie entirely
+  if (booking?.payment_method === "cash" || booking?.payment_status === "cash_pending") {
+    const copy = statusCopy("cash")
+    return (
+      <main className="min-h-screen bg-[#0a0a0a] px-6 py-24 text-white">
+        <div className="mx-auto max-w-xl rounded-2xl border border-white/[0.09] bg-[#111111] p-6 shadow-2xl">
+          <h1 className="text-2xl font-semibold text-white">{copy.title}</h1>
+          {booking.reference ? (
+            <p className="mt-2 text-sm text-white/50">
+              Referentie: <span className="font-mono text-[#D4B896]">{booking.reference}</span>
+            </p>
+          ) : null}
+          <div className="mt-4 space-y-2 text-sm text-white/70">
+            <p>{copy.body}</p>
+            {copy.sub ? <p className="text-white/40">{copy.sub}</p> : null}
+            {typeof booking.estimated_fare === "number" ? (
+              <p>Te betalen bij chauffeur: <span className="font-semibold text-[#D4B896]">{formatCurrencyEUR(booking.estimated_fare)}</span></p>
+            ) : null}
+          </div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/"
+              className="rounded-lg border border-[#D4B896]/40 bg-[#D4B896]/[0.08] px-4 py-2 text-sm font-semibold text-[#D4B896] transition-colors hover:bg-[#D4B896]/[0.16]"
+            >
+              Terug naar home
+            </Link>
+            <a
+              href="https://wa.me/31853038136"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-white/[0.12] px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.04]"
+            >
+              Contact via WhatsApp
+            </a>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  // Online payment path — existing logic
   const effectivePaymentId = paymentId || booking?.mollie_payment_id || ""
   let viewStatus: ViewStatus = "unknown"
 

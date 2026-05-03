@@ -1,9 +1,10 @@
-﻿import { NextRequest } from "next/server"
+import { NextRequest } from "next/server"
 import { isAdminAuthenticated } from "@/lib/admin-auth"
 import { sendEmail } from "@/lib/email/send"
 import { manualPaymentLinkEmail } from "@/lib/email/templates"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 import { computeRouteFare } from "@/lib/taxi/pricing"
+import { matchFixedRoute } from "@/lib/taxi/fixed-routes"
 
 interface CreatePaymentBody {
   customerName?: string
@@ -16,9 +17,14 @@ interface CreatePaymentBody {
   pickupDate?: string
   pickupTime?: string
   passengers?: number
+  vehicleType?: "taxi" | "taxibus"
+  adminVehicleOverride?: boolean
   notes?: string
   sendEmail?: boolean
   saveWithoutPayment?: boolean
+  priceOverrideEnabled?: boolean
+  priceOverrideAmount?: number
+  priceOverrideReason?: string
 }
 
 function generateRef(): string {
@@ -60,32 +66,59 @@ export async function POST(request: NextRequest) {
   const pickupTime = String(body.pickupTime || "").trim()
   const notes = String(body.notes || "").trim()
   const passengers = Math.max(1, Math.min(8, Number(body.passengers || 1)))
+  const vehicleType = body.vehicleType
+  const adminVehicleOverride = Boolean(body.adminVehicleOverride)
   const saveWithoutPayment = Boolean(body.saveWithoutPayment)
   const wantsEmail = Boolean(body.sendEmail)
-  const pickupAddressForStorage = String(pickup?.address || pickupAddress).trim()
-  const destinationAddressForStorage = String(destination?.address || destinationAddress).trim()
+  const priceOverrideEnabled = Boolean(body.priceOverrideEnabled)
+  const priceOverrideAmount = priceOverrideEnabled ? Number(body.priceOverrideAmount || 0) : 0
+  const priceOverrideReason = priceOverrideEnabled ? String(body.priceOverrideReason || "").trim() : ""
 
   if (!customerName || !customerPhone || !pickup || !destination || !pickupDate || !pickupTime) {
     return Response.json({ success: false, message: "Vul alle verplichte velden in." }, { status: 400 })
   }
-
   if (wantsEmail && !customerEmail) {
     return Response.json({ success: false, message: "E-mailadres is verplicht om een betaallink te mailen." }, { status: 400 })
   }
+  if (priceOverrideEnabled && priceOverrideAmount <= 0) {
+    return Response.json({ success: false, message: "Voer een geldige eindprijs in." }, { status: 400 })
+  }
+  if (priceOverrideEnabled && !priceOverrideReason) {
+    return Response.json({ success: false, message: "Reden voor prijsaanpassing is verplicht." }, { status: 400 })
+  }
+
+  const pickupAddressForStorage = String(pickup?.address || pickupAddress).trim()
+  const destinationAddressForStorage = String(destination?.address || destinationAddress).trim()
 
   let fare
   try {
-    fare = await computeRouteFare({
-      origin: pickup,
-      destination,
-      passengers,
-    })
+    fare = await computeRouteFare({ origin: pickup, destination, passengers, vehicleType })
   } catch (error) {
     return Response.json(
       { success: false, message: error instanceof Error ? error.message : "Prijsberekening mislukt." },
       { status: 400 }
     )
   }
+
+  // Fixed route matching
+  const fixedMatch = matchFixedRoute(pickupAddressForStorage, destinationAddressForStorage)
+  const fixedFare = fixedMatch
+    ? fare.vehicleType === "taxibus"
+      ? fixedMatch.taxibusPrice
+      : fixedMatch.taxiPrice
+    : null
+
+  const meteredFare = fare.estimatedFare
+  const routeFare = fixedFare ?? meteredFare
+
+  // Final fare: manual override wins, then fixed route, then metered
+  const finalFare = priceOverrideEnabled ? priceOverrideAmount : routeFare
+
+  const pricingMode = priceOverrideEnabled
+    ? "manual_override"
+    : fixedMatch
+      ? "fixed_route"
+      : "metered"
 
   const supabase = getSupabaseServiceClient()
   const bookingRef = generateRef()
@@ -105,7 +138,7 @@ export async function POST(request: NextRequest) {
       vehicle_type: fare.vehicleType,
       distance_km: fare.distanceKm,
       duration_minutes: fare.durationMinutes,
-      estimated_fare: fare.estimatedFare,
+      estimated_fare: finalFare,
       currency: fare.currency,
       payment_status: "pending_payment",
       booking_status: "pending_payment",
@@ -114,6 +147,15 @@ export async function POST(request: NextRequest) {
       created_by: "admin",
       manual_created: true,
       price_calculated_at: new Date().toISOString(),
+      // Pricing audit columns
+      pricing_mode: pricingMode,
+      calculated_fare: meteredFare,
+      fixed_route_fare: fixedFare ?? null,
+      final_fare: finalFare,
+      matched_fixed_route: fixedMatch?.routeLabel ?? null,
+      price_override_enabled: priceOverrideEnabled,
+      price_override_reason: priceOverrideReason || null,
+      admin_vehicle_override: adminVehicleOverride,
     })
     .select("id, reference")
     .single()
@@ -122,11 +164,18 @@ export async function POST(request: NextRequest) {
     return Response.json({ success: false, message: "Rit kon niet worden opgeslagen." }, { status: 500 })
   }
 
+  const noteparts = [
+    `Handmatige rit aangemaakt via admin.`,
+    `Prijsmodus: ${pricingMode}.`,
+    fixedMatch ? `Vaste route: ${fixedMatch.routeLabel}.` : null,
+    priceOverrideEnabled ? `Prijsoverschrijving: ${priceOverrideReason}.` : null,
+  ].filter(Boolean).join(" ")
+
   await supabase.from("booking_events").insert({
     booking_id: booking.id,
     event_type: "manual_booking_created",
     actor_type: "admin",
-    note: "Handmatige rit aangemaakt via admin.",
+    note: noteparts,
   })
 
   if (saveWithoutPayment) {
@@ -135,7 +184,7 @@ export async function POST(request: NextRequest) {
       mode: "saved_without_payment",
       bookingId: booking.id,
       reference: booking.reference,
-      fare,
+      fare: { ...fare, estimatedFare: finalFare, pricingMode, matchedFixedRoute: fixedMatch?.routeLabel },
     })
   }
 
@@ -159,7 +208,7 @@ export async function POST(request: NextRequest) {
     body: JSON.stringify({
       amount: {
         currency: fare.currency,
-        value: Number(fare.estimatedFare).toFixed(2),
+        value: Number(finalFare).toFixed(2),
       },
       description: `AlmereTaxiBoeken rit ${booking.reference}`,
       redirectUrl: redirectUrl.toString(),
@@ -175,7 +224,7 @@ export async function POST(request: NextRequest) {
         name: customerName,
         phone: customerPhone,
         email: customerEmail || undefined,
-        price: fare.estimatedFare,
+        price: finalFare,
         distanceKm: fare.distanceKm,
         durationMin: fare.durationMinutes,
         passengers: fare.passengers,
@@ -191,7 +240,6 @@ export async function POST(request: NextRequest) {
     } catch {
       // no-op
     }
-
     return Response.json({ success: false, message: providerMessage }, { status: 502 })
   }
 
@@ -205,11 +253,7 @@ export async function POST(request: NextRequest) {
 
   const { error: updateError } = await supabase
     .from("bookings")
-    .update({
-      mollie_payment_id: paymentId,
-      mollie_checkout_url: paymentUrl,
-      customer_payment_link: paymentUrl,
-    })
+    .update({ mollie_payment_id: paymentId, mollie_checkout_url: paymentUrl, customer_payment_link: paymentUrl })
     .eq("id", booking.id)
 
   if (updateError) {
@@ -220,7 +264,7 @@ export async function POST(request: NextRequest) {
     booking_id: booking.id,
     event_type: "payment_link_created",
     actor_type: "admin",
-    note: `Mollie payment id: ${paymentId}`,
+    note: `Mollie payment id: ${paymentId}. Eindprijs: €${finalFare.toFixed(2)}.`,
   })
 
   let emailSent = false
@@ -235,7 +279,7 @@ export async function POST(request: NextRequest) {
       destination: destinationAddressForStorage,
       passengers: fare.passengers,
       vehicleType: fare.vehicleType,
-      price: fare.estimatedFare,
+      price: finalFare,
       paymentUrl,
     })
 
@@ -248,11 +292,7 @@ export async function POST(request: NextRequest) {
 
     if (sendResult.sent) {
       emailSent = true
-      await supabase
-        .from("bookings")
-        .update({ payment_link_sent_at: new Date().toISOString() })
-        .eq("id", booking.id)
-
+      await supabase.from("bookings").update({ payment_link_sent_at: new Date().toISOString() }).eq("id", booking.id)
       await supabase.from("booking_events").insert({
         booking_id: booking.id,
         event_type: "payment_link_email_sent",
@@ -276,7 +316,7 @@ export async function POST(request: NextRequest) {
     bookingId: booking.id,
     reference: booking.reference,
     paymentUrl,
-    fare,
+    fare: { ...fare, estimatedFare: finalFare, pricingMode, matchedFixedRoute: fixedMatch?.routeLabel },
     emailSent,
     warning: emailWarning || undefined,
   })

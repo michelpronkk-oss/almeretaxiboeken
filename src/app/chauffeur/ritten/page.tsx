@@ -2,6 +2,8 @@
 import { getAuthenticatedDriverId } from "@/lib/driver-auth"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 import RideOpsControls from "@/components/chauffeur/ride-ops-controls"
+import CashCollectButton from "@/components/chauffeur/cash-collect-button"
+import { formatCurrencyEUR } from "@/lib/format"
 import { Clock, MapPin, Phone, Users } from "lucide-react"
 
 const STATUS_INFO: Record<string, { label: string; style: string }> = {
@@ -40,7 +42,7 @@ export default async function ChauffeurRittenPage() {
 
   const { data: rides } = await supabase
     .from("bookings")
-    .select("id, reference, pickup_date, pickup_time, pickup_address, destination_address, customer_name, customer_phone, passengers, vehicle_type, booking_status")
+    .select("id, reference, pickup_date, pickup_time, pickup_address, destination_address, customer_name, customer_phone, passengers, vehicle_type, booking_status, payment_method, cash_amount_due, cash_collection_status")
     .eq("assigned_driver_id", driverId)
     .gte("pickup_date", today)
     .order("pickup_date", { ascending: true })
@@ -102,6 +104,9 @@ type Ride = {
   passengers: number | null
   vehicle_type: string | null
   booking_status: string | null
+  payment_method: string | null
+  cash_amount_due: number | null
+  cash_collection_status: string | null
 }
 
 function RideCard({ ride, highlight }: { ride: Ride; highlight?: boolean }) {
@@ -139,9 +144,26 @@ function RideCard({ ride, highlight }: { ride: Ride; highlight?: boolean }) {
         {(ride.passengers || ride.vehicle_type) && <span className="flex items-center gap-1"><Users className="size-3" />{ride.passengers ?? "-"} pers. · {ride.vehicle_type === "taxibus" ? "Taxibus" : "Taxi"}</span>}
       </div>
 
+      {ride.payment_method === "cash" ? (
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-[#22A06B]/20 bg-[#22A06B]/[0.06] px-3 py-2">
+          <span className="text-xs font-medium text-[#22A06B]">Contant innen</span>
+          {ride.cash_amount_due ? (
+            <span className="ml-auto text-sm font-bold text-[#22A06B]">
+              Te innen: {formatCurrencyEUR(ride.cash_amount_due)}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
       {!done ? (
         <div className="mt-4 space-y-2">
           <RideOpsControls bookingId={ride.id} currentStatus={ride.booking_status || ""} />
+          {ride.payment_method === "cash" && ride.cash_collection_status !== "collected" ? (
+            <CashCollectButton bookingId={ride.id} />
+          ) : null}
+          {ride.payment_method === "cash" && ride.cash_collection_status === "collected" ? (
+            <p className="text-xs font-medium text-[#22A06B]">Contant ontvangen ✓</p>
+          ) : null}
           {nav ? <a href={nav} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-xl border border-[#292520] px-4 py-2.5 text-sm font-semibold text-[#B7AEA2] transition-colors hover:bg-[#141210]">Navigeer</a> : null}
         </div>
       ) : null}

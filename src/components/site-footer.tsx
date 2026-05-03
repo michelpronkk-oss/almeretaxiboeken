@@ -1,3 +1,4 @@
+import Image from "next/image"
 import Link from "next/link"
 
 export function SiteFooter() {
@@ -6,9 +7,24 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-6 py-14">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <h3 className="text-base font-semibold text-[#F5F1E8]">
-              AlmereTaxi<span className="text-[#D6B58A]">Boeken</span>
-            </h3>
+            <Link href="/" className="flex items-center gap-2">
+              <Image
+                src="/logo-icon.png"
+                alt=""
+                width={32}
+                height={32}
+                aria-hidden="true"
+                className="h-8 w-8 object-contain"
+              />
+              <Image
+                src="/logo-wordmark.png"
+                alt="Almere Taxi Boeken"
+                width={260}
+                height={52}
+                className="h-[52px] w-auto object-contain"
+                style={{ width: "auto" }}
+              />
+            </Link>
             <p className="mt-3 text-sm leading-relaxed text-[#B7AEA2]">
               Betrouwbaar taxivervoer in Almere voor luchthavenritten, zakelijke ritten en
               particulier vervoer.

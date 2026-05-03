@@ -321,15 +321,16 @@ export default async function AdminPage() {
         <section className="rounded-xl border border-[#1F1C18] bg-[#0D0C0B] p-4">
           <SectionHeader
             title="Financieel overzicht"
-            sub="Alleen betaalde ritten"
+            sub="Online betaald + contant"
           />
           <div className="space-y-1.5">
-            <MetricRow label="Omzet vandaag" value={formatCurrencyEUR(m.revenueToday)} highlight />
-            <MetricRow label="Omzet deze week" value={formatCurrencyEUR(m.revenueWeek)} />
-            <MetricRow label="Omzet deze maand" value={formatCurrencyEUR(m.revenueMonth)} />
-            <MetricRow label="Totale omzet" value={formatCurrencyEUR(m.revenueTotal)} />
+            <MetricRow label="Online omzet vandaag" value={formatCurrencyEUR(m.revenueToday)} highlight />
+            <MetricRow label="Online omzet deze week" value={formatCurrencyEUR(m.revenueWeek)} />
+            <MetricRow label="Online omzet deze maand" value={formatCurrencyEUR(m.revenueMonth)} />
+            <MetricRow label="Online omzet totaal" value={formatCurrencyEUR(m.revenueTotal)} />
+            <MetricRow label="Contant te innen" value={`${m.cashPendingCount} rit${m.cashPendingCount !== 1 ? "ten" : ""} · ${formatCurrencyEUR(m.cashPendingAmount)}`} highlight={m.cashPendingCount > 0} />
+            <MetricRow label="Contant ontvangen" value={`${m.cashCollectedCount} rit${m.cashCollectedCount !== 1 ? "ten" : ""} · ${formatCurrencyEUR(m.cashCollectedAmount)}`} />
             <MetricRow label="Gemiddelde ritwaarde" value={formatCurrencyEUR(m.averageFare)} />
-            <MetricRow label="Hoogste ritwaarde" value={formatCurrencyEUR(m.highestFare)} />
           </div>
         </section>
 

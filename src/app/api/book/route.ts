@@ -1,5 +1,8 @@
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 import { isTooSoonForPublicBooking } from "@/lib/operations"
+import { matchFixedRoute } from "@/lib/taxi/fixed-routes"
+import { sendEmail } from "@/lib/email/send"
+import { cashBookingRequestEmail, internalCashBookingEmail } from "@/lib/email/templates"
 
 interface BookingBody {
   origin: string
@@ -15,6 +18,11 @@ interface BookingBody {
   durationMin: number
   passengers?: number
   notes?: string
+  paymentMethod?: "online" | "cash"
+  pricingMode?: string
+  calculatedFare?: number
+  fixedRouteFare?: number | null
+  matchedFixedRoute?: string | null
 }
 
 function generateRef(): string {
@@ -39,6 +47,7 @@ export async function POST(request: Request) {
   } = body
   const passengers = typeof body.passengers === "number" ? Math.max(1, Math.min(8, body.passengers)) : vehicleType === "taxibus" ? 5 : 1
   const normalizedVehicleType: "taxi" | "taxibus" = passengers >= 5 ? "taxibus" : "taxi"
+  const paymentMethod: "online" | "cash" = body.paymentMethod === "cash" ? "cash" : "online"
 
   if (!origin || !destination || !date || !time || !name || !phone || !email || !price) {
     return Response.json({ error: "Verplichte velden ontbreken." }, { status: 400 })
@@ -55,13 +64,114 @@ export async function POST(request: Request) {
     )
   }
 
+  const supabase = getSupabaseServiceClient()
+  const bookingRef = generateRef()
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://almeretaxiboeken.nl").replace(/\/$/, "")
+
+  // ── Cash payment path ────────────────────────────────────────────────────────
+  if (paymentMethod === "cash") {
+    // Server-side price verification: fixed routes are authoritative
+    const fixedMatch = matchFixedRoute(origin, destination)
+    const cashFare = fixedMatch
+      ? normalizedVehicleType === "taxibus"
+        ? fixedMatch.taxibusPrice
+        : fixedMatch.taxiPrice
+      : Number(price)
+    const cashPricingMode = fixedMatch ? "fixed_route" : (body.pricingMode ?? "metered")
+
+    const { data: cashBooking, error: cashInsertError } = await supabase
+      .from("bookings")
+      .insert({
+        reference: bookingRef,
+        customer_name: name,
+        customer_email: email,
+        customer_phone: phone,
+        pickup_address: origin,
+        destination_address: destination,
+        pickup_date: date,
+        pickup_time: time,
+        passengers,
+        vehicle_type: normalizedVehicleType,
+        distance_km: Number(body.distanceKm ?? 0),
+        duration_minutes: Number(body.durationMin ?? 0),
+        estimated_fare: cashFare,
+        currency: process.env.TAXI_CURRENCY || "EUR",
+        payment_method: "cash",
+        payment_status: "cash_pending",
+        booking_status: "unassigned",
+        cash_amount_due: cashFare,
+        cash_collection_status: "pending",
+        notes: body.notes ?? null,
+        pricing_mode: cashPricingMode,
+        calculated_fare: Number(body.calculatedFare ?? price),
+        fixed_route_fare: fixedMatch ? cashFare : (body.fixedRouteFare ? Number(body.fixedRouteFare) : null),
+        final_fare: cashFare,
+        matched_fixed_route: fixedMatch?.routeLabel ?? body.matchedFixedRoute ?? null,
+      })
+      .select("id, reference")
+      .single()
+
+    if (cashInsertError || !cashBooking) {
+      return Response.json({ error: "Boeking kon niet worden opgeslagen." }, { status: 500 })
+    }
+
+    await supabase.from("booking_events").insert({
+      booking_id: cashBooking.id,
+      event_type: "booking_created",
+      actor_type: "customer",
+      note: "Contante boeking aangemaakt via website.",
+    })
+
+    // Customer confirmation email
+    if (email) {
+      const tmpl = cashBookingRequestEmail({
+        reference: cashBooking.reference,
+        date,
+        time,
+        origin,
+        destination,
+        passengers,
+        vehicleType: normalizedVehicleType,
+        price: cashFare,
+        customerName: name,
+      })
+      await sendEmail({ to: email, subject: tmpl.subject, html: tmpl.html, text: tmpl.text })
+    }
+
+    // Admin notification email
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.RESEND_FROM_EMAIL
+    if (adminEmail) {
+      const adminTmpl = internalCashBookingEmail({
+        reference: cashBooking.reference,
+        customerName: name,
+        customerEmail: email,
+        customerPhone: phone,
+        origin,
+        destination,
+        date,
+        time,
+        vehicleType: normalizedVehicleType,
+        passengers,
+        price: cashFare,
+        bookingUrl: `${siteUrl}/admin/ritten`,
+        cashAmount: cashFare,
+      })
+      await sendEmail({ to: adminEmail, subject: adminTmpl.subject, html: adminTmpl.html, text: adminTmpl.text })
+    }
+
+    return Response.json({
+      bookingId: cashBooking.id,
+      bookingRef: cashBooking.reference,
+      paymentMethod: "cash",
+      redirectUrl: `${siteUrl}/boeking/bedankt?bookingId=${cashBooking.id}&reference=${cashBooking.reference}`,
+    })
+  }
+
+  // ── Online payment path (Mollie) ─────────────────────────────────────────────
   const mollieApiKey = process.env.MOLLIE_API_KEY
   if (!mollieApiKey) {
     return Response.json({ error: "Betalen is tijdelijk niet beschikbaar." }, { status: 503 })
   }
-
-  const supabase = getSupabaseServiceClient()
-  const bookingRef = generateRef()
 
   const { data: insertedBooking, error: insertError } = await supabase
     .from("bookings")
@@ -80,9 +190,16 @@ export async function POST(request: Request) {
       duration_minutes: Number(body.durationMin ?? 0),
       estimated_fare: Number(price),
       currency: process.env.TAXI_CURRENCY || "EUR",
+      payment_method: "online",
       payment_status: "pending_payment",
       booking_status: "pending_payment",
+      cash_collection_status: "not_applicable",
       notes: body.notes ?? null,
+      pricing_mode: body.pricingMode ?? "metered",
+      calculated_fare: Number(body.calculatedFare ?? price),
+      fixed_route_fare: body.fixedRouteFare ? Number(body.fixedRouteFare) : null,
+      final_fare: Number(price),
+      matched_fixed_route: body.matchedFixedRoute ?? null,
     })
     .select("id, reference")
     .single()

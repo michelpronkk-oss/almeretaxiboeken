@@ -1,5 +1,6 @@
-﻿import { type NextRequest } from "next/server"
+import { type NextRequest } from "next/server"
 import { computeRouteFare, parseLocation } from "@/lib/taxi/pricing"
+import { matchFixedRoute } from "@/lib/taxi/fixed-routes"
 
 type LocationInput = {
   address?: string
@@ -14,6 +15,12 @@ interface RouteRequestBody {
   vehicleType?: "taxi" | "taxibus"
 }
 
+function extractAddress(input: string | LocationInput | undefined): string {
+  if (!input) return ""
+  if (typeof input === "string") return input
+  return input.address || ""
+}
+
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as RouteRequestBody
   const origin = parseLocation(body.origin ?? body.pickup)
@@ -26,12 +33,6 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  if (process.env.NODE_ENV === "development") {
-    console.info("[Fare API] server key exists:", Boolean(process.env.GOOGLE_MAPS_SERVER_KEY))
-    console.info("[Fare API] origin type:", origin.placeId ? "placeId" : "address")
-    console.info("[Fare API] destination type:", destination.placeId ? "placeId" : "address")
-  }
-
   try {
     const result = await computeRouteFare({
       origin,
@@ -40,24 +41,38 @@ export async function POST(request: NextRequest) {
       vehicleType: body.vehicleType,
     })
 
-    return Response.json(result)
+    const pickupStr = extractAddress(body.origin ?? body.pickup)
+    const destStr = extractAddress(body.destination)
+    const fixedMatch = matchFixedRoute(pickupStr, destStr)
+
+    const fixedFare = fixedMatch
+      ? result.vehicleType === "taxibus"
+        ? fixedMatch.taxibusPrice
+        : fixedMatch.taxiPrice
+      : null
+
+    const pricingMode = fixedMatch ? "fixed_route" : "metered"
+    const finalFare = fixedFare ?? result.estimatedFare
+
+    return Response.json({
+      ...result,
+      price: finalFare,
+      estimatedFare: finalFare,
+      calculatedFare: result.estimatedFare,
+      pricingMode,
+      fixedRouteTaxiPrice: fixedMatch?.taxiPrice ?? null,
+      fixedRouteTaxibusPrice: fixedMatch?.taxibusPrice ?? null,
+      matchedFixedRoute: fixedMatch?.routeLabel ?? null,
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Tarief kon niet worden berekend."
 
     if (message.includes("Google Routes API fout")) {
-      return Response.json(
-        {
-          error: "Google Routes API fout.",
-          googleMessage: message,
-        },
-        { status: 502 }
-      )
+      return Response.json({ error: "Google Routes API fout.", googleMessage: message }, { status: 502 })
     }
-
     if (message.includes("Server key ontbreekt")) {
       return Response.json({ error: message }, { status: 503 })
     }
-
     if (message.includes("Geen route gevonden")) {
       return Response.json({ error: message }, { status: 400 })
     }

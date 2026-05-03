@@ -76,7 +76,10 @@ export async function computeRouteFare(input: ComputeFareInput): Promise<Compute
         ? 5
         : 1
 
-  const isVan = passengers >= 5
+  // Explicit vehicleType override takes precedence over passenger-derived vehicle
+  const isVan = input.vehicleType
+    ? input.vehicleType === "taxibus"
+    : passengers >= 5
 
   const baseFare = envNumber("TAXI_BASE_FARE", 4.31)
   const kmRate = envNumber("TAXI_PRICE_PER_KM", 3.17)

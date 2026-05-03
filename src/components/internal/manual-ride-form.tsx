@@ -1,6 +1,6 @@
-﻿"use client"
+"use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import AddressAutocomplete from "@/components/address-autocomplete"
 import { formatCurrencyEUR } from "@/lib/format"
@@ -11,6 +11,9 @@ type FareResult = {
   estimatedFare: number
   vehicleType: "taxi" | "taxibus"
   passengers: number
+  pricingMode?: "metered" | "fixed_route"
+  matchedFixedRoute?: string | null
+  calculatedFare?: number
 }
 
 type LocationValue = {
@@ -32,6 +35,15 @@ type CreateResponse = {
 
 const passengerOptions = [1, 2, 3, 4, 5, 6, 7, 8]
 
+const OVERRIDE_REASONS = [
+  "Vaste Schipholprijs",
+  "Telefonische afspraak",
+  "Korting",
+  "Routecorrectie",
+  "Wacht-/extra kosten",
+  "Anders",
+]
+
 export default function ManualRideForm() {
   const [customerName, setCustomerName] = useState("")
   const [customerEmail, setCustomerEmail] = useState("")
@@ -43,9 +55,16 @@ export default function ManualRideForm() {
   const [pickupDate, setPickupDate] = useState("")
   const [pickupTime, setPickupTime] = useState("")
   const [passengers, setPassengers] = useState(1)
+  const [vehicleType, setVehicleType] = useState<"taxi" | "taxibus">("taxi")
+  const [adminVehicleOverride, setAdminVehicleOverride] = useState(false)
   const [notes, setNotes] = useState("")
   const [sendEmailToCustomer, setSendEmailToCustomer] = useState(true)
   const [saveWithoutPayment, setSaveWithoutPayment] = useState(false)
+
+  // Price override
+  const [overrideEnabled, setOverrideEnabled] = useState(false)
+  const [overrideAmount, setOverrideAmount] = useState("")
+  const [overrideReason, setOverrideReason] = useState("")
 
   const [calculating, setCalculating] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -58,7 +77,25 @@ export default function ManualRideForm() {
   const [fare, setFare] = useState<FareResult | null>(null)
   const [result, setResult] = useState<CreateResponse | null>(null)
 
-  const derivedVehicle = passengers >= 5 ? "Taxibus" : "Taxi"
+  // Auto-suggest vehicle type from passengers unless admin has manually overridden
+  useEffect(() => {
+    if (!adminVehicleOverride) {
+      setVehicleType(passengers >= 5 ? "taxibus" : "taxi")
+    }
+  }, [passengers, adminVehicleOverride])
+
+  const vehicleWarning =
+    passengers >= 5 && vehicleType === "taxi"
+      ? "Let op: 5 of meer passagiers — overweeg Taxibus."
+      : passengers <= 4 && vehicleType === "taxibus" && adminVehicleOverride
+        ? "Taxibus geselecteerd voor 1-4 passagiers."
+        : ""
+
+  const displayedFare = useMemo(() => {
+    if (!fare) return null
+    if (overrideEnabled && Number(overrideAmount) > 0) return Number(overrideAmount)
+    return fare.estimatedFare
+  }, [fare, overrideEnabled, overrideAmount])
 
   const whatsappText = useMemo(() => {
     if (!result?.paymentUrl) return ""
@@ -69,6 +106,7 @@ export default function ManualRideForm() {
     setError("")
     setStatus("")
     setWarning("")
+    setFare(null)
 
     if (!pickupAddress.trim() || !destinationAddress.trim()) {
       setError("Vul vertrekadres en bestemming in.")
@@ -86,20 +124,22 @@ export default function ManualRideForm() {
           pickup: pickupLocation,
           destination: destinationLocation,
           passengers,
+          vehicleType,
         }),
       })
       const data = await res.json()
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Prijsberekening mislukt.")
-      }
+      if (!res.ok || !data.success) throw new Error(data.message || "Prijsberekening mislukt.")
       setFare({
         distanceKm: data.distanceKm,
         durationMinutes: data.durationMinutes,
         estimatedFare: data.estimatedFare,
         vehicleType: data.vehicleType,
         passengers: data.passengers,
+        pricingMode: data.pricingMode,
+        matchedFixedRoute: data.matchedFixedRoute,
+        calculatedFare: data.calculatedFare,
       })
-      setStatus("Prijs berekend.")
+      setStatus(data.pricingMode === "fixed_route" ? `Vaste routeprijs toegepast: ${data.matchedFixedRoute}.` : "Prijs berekend.")
     } catch (e) {
       setError(e instanceof Error ? e.message : "Prijsberekening mislukt.")
     } finally {
@@ -116,14 +156,20 @@ export default function ManualRideForm() {
       setError("Vul alle verplichte velden in.")
       return
     }
-
     if (!fare) {
       setError("Bereken eerst de prijs.")
       return
     }
-
     if (!saveWithoutPayment && sendEmailToCustomer && !customerEmail.trim()) {
       setError("E-mailadres is verplicht als u de betaallink per e-mail wilt versturen.")
+      return
+    }
+    if (overrideEnabled && Number(overrideAmount) <= 0) {
+      setError("Voer een geldige eindprijs in.")
+      return
+    }
+    if (overrideEnabled && !overrideReason) {
+      setError("Selecteer een reden voor de prijsaanpassing.")
       return
     }
 
@@ -143,23 +189,22 @@ export default function ManualRideForm() {
           pickupDate,
           pickupTime,
           passengers,
+          vehicleType,
+          adminVehicleOverride,
           notes,
           sendEmail: !saveWithoutPayment && sendEmailToCustomer,
           saveWithoutPayment,
+          priceOverrideEnabled: overrideEnabled,
+          priceOverrideAmount: overrideEnabled ? Number(overrideAmount) : undefined,
+          priceOverrideReason: overrideEnabled ? overrideReason : undefined,
         }),
       })
 
       const data = (await res.json()) as CreateResponse
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Aanmaken mislukt.")
-      }
+      if (!res.ok || !data.success) throw new Error(data.message || "Aanmaken mislukt.")
 
       setResult(data)
-      if (data.mode === "saved_without_payment") {
-        setStatus("Rit opgeslagen zonder betaling.")
-      } else {
-        setStatus("Betaallink aangemaakt.")
-      }
+      setStatus(data.mode === "saved_without_payment" ? "Rit opgeslagen zonder betaling." : "Betaallink aangemaakt.")
       if (data.warning) setWarning(data.warning)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Aanmaken mislukt.")
@@ -180,9 +225,7 @@ export default function ManualRideForm() {
         body: JSON.stringify({ bookingId: result.bookingId }),
       })
       const data = await res.json()
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "E-mail kon niet worden verzonden.")
-      }
+      if (!res.ok || !data.success) throw new Error(data.message || "E-mail kon niet worden verzonden.")
       setStatus("E-mail naar klant verstuurd.")
     } catch (e) {
       setError(e instanceof Error ? e.message : "E-mail kon niet worden verzonden.")
@@ -232,10 +275,7 @@ export default function ManualRideForm() {
             <AddressAutocomplete
               label="Vertrekadres"
               value={pickupAddress}
-              onChange={(value) => {
-                setPickupAddress(value)
-                setPickupLocation({ address: value, placeId: undefined })
-              }}
+              onChange={(value) => { setPickupAddress(value); setPickupLocation({ address: value, placeId: undefined }) }}
               onPlaceSelect={(place) => setPickupLocation(place)}
               placeholder="Vertrekadres"
               inputClassName="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8] placeholder:text-[#8F877D] outline-none focus:border-[#D6B58A]/50"
@@ -243,10 +283,7 @@ export default function ManualRideForm() {
             <AddressAutocomplete
               label="Bestemmingsadres"
               value={destinationAddress}
-              onChange={(value) => {
-                setDestinationAddress(value)
-                setDestinationLocation({ address: value, placeId: undefined })
-              }}
+              onChange={(value) => { setDestinationAddress(value); setDestinationLocation({ address: value, placeId: undefined }) }}
               onPlaceSelect={(place) => setDestinationLocation(place)}
               placeholder="Bestemmingsadres"
               inputClassName="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#F5F1E8] placeholder:text-[#8F877D] outline-none focus:border-[#D6B58A]/50"
@@ -261,8 +298,21 @@ export default function ManualRideForm() {
                   <option key={p} value={p}>{p} {p === 1 ? "persoon" : "personen"}</option>
                 ))}
               </select>
-              <div className="flex h-10 items-center rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#D6B58A]">Voertuig: {derivedVehicle}</div>
+              <select
+                value={vehicleType}
+                onChange={(e) => {
+                  setVehicleType(e.target.value as "taxi" | "taxibus")
+                  setAdminVehicleOverride(true)
+                }}
+                className="h-10 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-sm text-[#D6B58A]"
+              >
+                <option value="taxi">Taxi</option>
+                <option value="taxibus">Taxibus</option>
+              </select>
             </div>
+            {vehicleWarning ? (
+              <p className="text-xs text-[#D6B58A]">{vehicleWarning}</p>
+            ) : null}
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opmerkingen (optioneel)" className="min-h-20 w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 py-2 text-sm text-[#F5F1E8]" />
           </div>
         </article>
@@ -277,11 +327,73 @@ export default function ManualRideForm() {
         </div>
 
         {fare ? (
-          <div className="mt-4 grid gap-3 rounded-xl border border-[#292520] bg-[#0D0C0B] p-4 sm:grid-cols-2 lg:grid-cols-4">
-            <p className="text-sm text-[#B7AEA2]">Afstand: <span className="text-[#F5F1E8]">{fare.distanceKm} km</span></p>
-            <p className="text-sm text-[#B7AEA2]">Reistijd: <span className="text-[#F5F1E8]">{fare.durationMinutes} min</span></p>
-            <p className="text-sm text-[#B7AEA2]">Voertuig: <span className="text-[#F5F1E8]">{fare.vehicleType === "taxibus" ? "Taxibus" : "Taxi"}</span></p>
-            <p className="text-sm text-[#B7AEA2]">Ritprijs: <span className="text-[#D6B58A] font-semibold">{formatCurrencyEUR(fare.estimatedFare)}</span></p>
+          <div className="mt-4 space-y-3">
+            <div className="grid gap-3 rounded-xl border border-[#292520] bg-[#0D0C0B] p-4 sm:grid-cols-2 lg:grid-cols-4">
+              <p className="text-sm text-[#B7AEA2]">Afstand: <span className="text-[#F5F1E8]">{fare.distanceKm} km</span></p>
+              <p className="text-sm text-[#B7AEA2]">Reistijd: <span className="text-[#F5F1E8]">{fare.durationMinutes} min</span></p>
+              <p className="text-sm text-[#B7AEA2]">Voertuig: <span className="text-[#F5F1E8]">{fare.vehicleType === "taxibus" ? "Taxibus" : "Taxi"}</span></p>
+              <p className="text-sm text-[#B7AEA2]">
+                {fare.pricingMode === "fixed_route" ? "Vaste prijs" : "Berekende prijs"}:{" "}
+                <span className="font-semibold text-[#D6B58A]">{formatCurrencyEUR(fare.estimatedFare)}</span>
+              </p>
+            </div>
+            {fare.pricingMode === "fixed_route" && fare.matchedFixedRoute ? (
+              <p className="text-xs text-[#D6B58A]">
+                Vaste routeprijs toegepast: {fare.matchedFixedRoute}
+                {fare.calculatedFare && fare.calculatedFare !== fare.estimatedFare
+                  ? ` (berekend: ${formatCurrencyEUR(fare.calculatedFare)})`
+                  : ""}
+              </p>
+            ) : null}
+
+            {/* Price override */}
+            <div className="rounded-xl border border-[#292520] bg-[#0D0C0B] p-4 space-y-3">
+              <label className="flex items-center gap-2 text-sm text-[#B7AEA2]">
+                <input
+                  type="checkbox"
+                  checked={overrideEnabled}
+                  onChange={(e) => setOverrideEnabled(e.target.checked)}
+                  className="size-4"
+                />
+                Prijs handmatig aanpassen
+              </label>
+              {overrideEnabled ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-[#B7AEA2]">€</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.01"
+                      value={overrideAmount}
+                      onChange={(e) => setOverrideAmount(e.target.value)}
+                      placeholder="Eindprijs"
+                      className="h-10 w-36 rounded-lg border border-[#292520] bg-[#141210] px-3 text-sm text-[#F5F1E8]"
+                    />
+                    {Number(overrideAmount) > 0 ? (
+                      <span className="text-sm font-semibold text-[#D6B58A]">{formatCurrencyEUR(Number(overrideAmount))}</span>
+                    ) : null}
+                  </div>
+                  <select
+                    value={overrideReason}
+                    onChange={(e) => setOverrideReason(e.target.value)}
+                    className="h-10 w-full rounded-lg border border-[#292520] bg-[#141210] px-3 text-sm text-[#F5F1E8]"
+                  >
+                    <option value="">Selecteer reden prijsaanpassing</option>
+                    {OVERRIDE_REASONS.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+            </div>
+
+            {displayedFare !== null && overrideEnabled && Number(overrideAmount) > 0 ? (
+              <p className="text-sm text-[#B7AEA2]">
+                Eindprijs (Mollie): <span className="font-semibold text-[#D6B58A]">{formatCurrencyEUR(displayedFare)}</span>
+                {overrideReason ? <span className="ml-2 text-xs text-[#8F877D]">— {overrideReason}</span> : null}
+              </p>
+            ) : null}
           </div>
         ) : null}
       </article>
@@ -301,7 +413,9 @@ export default function ManualRideForm() {
 
         <div className="mt-4 flex flex-wrap gap-3">
           <button type="button" onClick={createBookingAndPayment} disabled={creating || !fare} className="rounded-lg border border-[#3A2D1F] px-4 py-2 text-xs font-semibold text-[#D6B58A] hover:bg-[#1B1815] disabled:opacity-50">
-            {creating ? (saveWithoutPayment ? "Opslaan..." : "Betaallink aanmaken...") : (saveWithoutPayment ? "Opslaan zonder betaling" : "Betaallink aanmaken")}
+            {creating
+              ? saveWithoutPayment ? "Opslaan..." : "Betaallink aanmaken..."
+              : saveWithoutPayment ? "Opslaan zonder betaling" : "Betaallink aanmaken"}
           </button>
         </div>
       </article>

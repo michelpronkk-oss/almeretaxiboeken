@@ -98,6 +98,21 @@ const sections = [
       "Verwerk eventuele wijzigingen of refunds handmatig",
     ],
   },
+  {
+    title: "11. Vaste Schipholtarieven en prijsaanpassingen",
+    body: [
+      "AlmereTaxiBoeken past automatisch vaste routeprijzen toe voor bekende Schipholritten.",
+      "Huidige vaste routes: Almere ↔ Schiphol (Taxi €80 / Taxibus €95), Lelystad ↔ Schiphol (Taxi €110 / Taxibus €125), Hilversum ↔ Schiphol (Taxi €75 / Taxibus €90).",
+      "Bij een vaste route wordt de badge 'Vaste routeprijs' getoond in het ritoverzicht.",
+      "Taxibus heeft een eigen prijs per route. Dit is een interne prijs- en voertuigcorrectie, geen officiële Rijksoverheid-toeslag.",
+      "Admin kan bij het aanmaken van een handmatige rit het voertuigtype (Taxi/Taxibus) handmatig kiezen, ongeacht het aantal passagiers.",
+      "Admin kan de eindprijs handmatig overschrijven via 'Prijs handmatig aanpassen'. Een reden is verplicht.",
+      "Mogelijke redenen: Vaste Schipholprijs, Telefonische afspraak, Korting, Routecorrectie, Wacht-/extra kosten, Anders.",
+      "De Mollie betaallink gebruikt altijd de eindprijs (vaste route, berekend of handmatig).",
+      "Klant ziet alleen de eindprijs. Interne berekening en reden zijn uitsluitend zichtbaar voor admin.",
+      "In het ritoverzicht: 'Handmatig aangepast' badge bij prijsoverschrijving. Reden en berekende prijs worden als auditinfo getoond.",
+    ],
+  },
 ]
 
 export default async function AdminDocsPage() {

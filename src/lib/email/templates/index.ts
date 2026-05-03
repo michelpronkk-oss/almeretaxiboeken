@@ -197,6 +197,69 @@ export function driverAssignedRideEmail(data: {
   }
 }
 
+export function cashBookingRequestEmail(data: {
+  reference: string
+  date: string
+  time: string
+  origin: string
+  destination: string
+  passengers: number
+  vehicleType?: string
+  price: number
+  customerName?: string
+}) {
+  return {
+    subject: `Uw rit is aangevraagd bij AlmereTaxiBoeken - ${data.reference}`,
+    ...renderBaseEmail({
+      preheader: "Uw rit is ontvangen. U betaalt contant bij de chauffeur.",
+      label: "Ritaanvraag",
+      title: "Uw rit is aangevraagd",
+      intro: "Uw ritaanvraag is ontvangen bij AlmereTaxiBoeken. U betaalt contant bij de chauffeur.",
+      details: [
+        { label: "Referentie", value: data.reference },
+        { label: "Datum", value: dateNl(data.date) },
+        { label: "Tijd", value: data.time },
+        { label: "Ophaaladres", value: data.origin },
+        { label: "Bestemming", value: data.destination },
+        { label: "Aantal personen", value: String(data.passengers) },
+        { label: "Voertuig", value: vehicleLabel(data.vehicleType) },
+        { label: "Ritprijs", value: euro(data.price) },
+        { label: "Betaalwijze", value: "Contant bij chauffeur" },
+      ],
+      note: "Bewaar uw referentienummer. De planning kan contact opnemen bij vragen. Geen online betaling vereist.",
+    }),
+  }
+}
+
+export function internalCashBookingEmail(data: BookingEmailData & { cashAmount: number }) {
+  return {
+    subject: `Nieuwe contante boeking - ${data.reference}`,
+    ...renderBaseEmail({
+      preheader: "Er is een nieuwe contante boeking binnengekomen.",
+      label: "Interne melding",
+      title: "Nieuwe contante boeking",
+      intro: "Er is een nieuwe rit aangevraagd met contante betaling. Wijs een chauffeur toe.",
+      details: [
+        { label: "Referentie", value: data.reference },
+        { label: "Klantnaam", value: data.customerName || "-" },
+        { label: "E-mail", value: data.customerEmail || "-" },
+        { label: "Telefoon", value: data.customerPhone || "-" },
+        { label: "Vertrekpunt", value: data.origin },
+        { label: "Bestemming", value: data.destination },
+        { label: "Datum", value: dateNl(data.date) },
+        { label: "Tijd", value: data.time },
+        { label: "Voertuigtype", value: vehicleLabel(data.vehicleType) },
+        { label: "Passagiers", value: String(data.passengers ?? "-") },
+        { label: "Te innen", value: euro(data.cashAmount) },
+        { label: "Betaalwijze", value: "Contant bij chauffeur" },
+      ],
+      ctaLabel: "Open adminpaneel",
+      ctaUrl: `${(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "")}/admin/ritten`,
+      fallbackLinkUrl: `${(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "")}/admin/ritten`,
+    }),
+  }
+}
+
 export function manualPaymentLinkEmail(data: {
   reference: string
   date: string

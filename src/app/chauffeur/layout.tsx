@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Car, LayoutDashboard, LogOut } from "lucide-react"
@@ -23,11 +24,16 @@ export default function ChauffeurLayout({ children }: { children: React.ReactNod
       <header className="sticky top-0 z-30 border-b border-[#1F1C18] bg-[rgba(8,8,7,0.92)] backdrop-blur-md">
         <div className="mx-auto w-full max-w-2xl sm:hidden">
           <div className="flex w-full items-center justify-between gap-2 px-4 pt-2.5 pb-2">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[16px] font-semibold leading-tight text-[#F5F1E8]">
-                AlmereTaxi<span className="text-[#D6B58A]">Boeken</span>
-              </p>
-              <p className="truncate text-[11px] leading-tight text-[#8F877D]">Chauffeurportaal</p>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <Image
+                src="/logo-icon.png"
+                alt="Almere Taxi Boeken"
+                width={32}
+                height={32}
+                className="h-8 w-8 shrink-0 object-contain"
+                priority
+              />
+              <span className="text-xs text-[#8F877D]">Chauffeur</span>
             </div>
             <a
               href="/chauffeur/logout"
@@ -62,11 +68,28 @@ export default function ChauffeurLayout({ children }: { children: React.ReactNod
         </div>
 
         <div className="mx-auto hidden max-w-2xl items-center justify-between px-6 sm:flex sm:h-14">
-          <div>
-            <p className="text-[15px] font-semibold leading-tight text-[#F5F1E8]">
-              AlmereTaxi<span className="text-[#D6B58A]">Boeken</span>
-            </p>
-            <p className="text-[10px] leading-tight text-[#7F776E]">Chauffeurportaal</p>
+          <div className="flex items-center gap-2.5">
+            <Image
+              src="/logo-icon.png"
+              alt=""
+              width={32}
+              height={32}
+              aria-hidden="true"
+              className="h-8 w-8 shrink-0 object-contain"
+              priority
+            />
+            <div>
+              <Image
+                src="/logo-wordmark.png"
+                alt="Almere Taxi Boeken"
+                width={260}
+                height={52}
+                className="h-[52px] w-auto object-contain"
+                style={{ width: "auto" }}
+                priority
+              />
+              <p className="text-[10px] leading-tight text-[#7F776E]">Chauffeurportaal</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-1">

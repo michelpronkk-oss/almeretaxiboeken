@@ -23,6 +23,9 @@ interface PriceResult {
   kmPrijs: number
   distanceKm: number
   durationMin: number
+  pricingMode?: "metered" | "fixed_route"
+  matchedFixedRoute?: string | null
+  calculatedFare?: number
 }
 
 const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "31612345678"
@@ -76,6 +79,7 @@ export const BookingWidget = memo(function BookingWidget() {
   const [email, setEmail] = useState("")
   const [originPlaceId, setOriginPlaceId] = useState<string | undefined>(undefined)
   const [destinationPlaceId, setDestinationPlaceId] = useState<string | undefined>(undefined)
+  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">("online")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [tooSoonMessage, setTooSoonMessage] = useState("")
@@ -158,6 +162,11 @@ export const BookingWidget = memo(function BookingWidget() {
           price: priceResult?.price,
           distanceKm: priceResult?.distanceKm,
           durationMin: priceResult?.durationMin,
+          paymentMethod,
+          pricingMode: priceResult?.pricingMode,
+          calculatedFare: priceResult?.calculatedFare ?? priceResult?.price,
+          fixedRouteFare: priceResult?.pricingMode === "fixed_route" ? priceResult?.price : null,
+          matchedFixedRoute: priceResult?.matchedFixedRoute ?? null,
         }),
       })
       const data = await res.json()
@@ -167,6 +176,10 @@ export const BookingWidget = memo(function BookingWidget() {
           return
         }
         throw new Error(data.error ?? "Boeking mislukt.")
+      }
+      if (data.paymentMethod === "cash" && data.redirectUrl) {
+        window.location.href = data.redirectUrl
+        return
       }
       const checkoutUrl = data.checkoutUrl as string | undefined
       if (!checkoutUrl) throw new Error("Geen betaalpagina ontvangen.")
@@ -210,12 +223,48 @@ export const BookingWidget = memo(function BookingWidget() {
         </div>
 
         <div className="mb-4 rounded-xl border border-[#D4B896]/[0.15] bg-[#D4B896]/[0.05] p-4">
-          <p className="mb-1 text-xs text-[#D4B896]/60">Vaste prijs</p>
-          <p className="text-3xl font-black text-[#D4B896]">{formatCurrencyEUR(priceResult.price)}</p>
-          <p className="mt-1 text-[10px] text-white/25">
-            Starttarief {formatCurrencyEUR(priceResult.starttarief)} + {priceResult.distanceKm} km · {formatCurrencyEUR(priceResult.kmTarief)}
-            {vehicleType === "taxibus" ? " (taxibus)" : " (taxi)"}
+          <p className="mb-1 text-xs text-[#D4B896]/60">
+            {priceResult.pricingMode === "fixed_route" ? "Vaste routeprijs" : "Vaste prijs"}
           </p>
+          <p className="text-3xl font-black text-[#D4B896]">{formatCurrencyEUR(priceResult.price)}</p>
+          {priceResult.pricingMode === "fixed_route" && priceResult.matchedFixedRoute ? (
+            <p className="mt-1 text-[10px] text-white/25">
+              {priceResult.matchedFixedRoute} · {vehicleType === "taxibus" ? "Taxibus" : "Taxi"}
+            </p>
+          ) : (
+            <p className="mt-1 text-[10px] text-white/25">
+              Starttarief {formatCurrencyEUR(priceResult.starttarief)} + {priceResult.distanceKm} km · {formatCurrencyEUR(priceResult.kmTarief)}
+              {vehicleType === "taxibus" ? " (taxibus)" : " (taxi)"}
+            </p>
+          )}
+        </div>
+
+        {/* Payment method selector */}
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setPaymentMethod("online")}
+            className={`rounded-xl border p-3 text-left transition-colors ${
+              paymentMethod === "online"
+                ? "border-[#D4B896]/50 bg-[#D4B896]/[0.10]"
+                : "border-white/[0.09] bg-white/[0.03] hover:bg-white/[0.05]"
+            }`}
+          >
+            <p className={`text-sm font-semibold ${paymentMethod === "online" ? "text-[#D4B896]" : "text-white/60"}`}>Online betalen</p>
+            <p className="mt-0.5 text-[10px] text-white/30">Veilig via Mollie</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaymentMethod("cash")}
+            className={`rounded-xl border p-3 text-left transition-colors ${
+              paymentMethod === "cash"
+                ? "border-[#D4B896]/50 bg-[#D4B896]/[0.10]"
+                : "border-white/[0.09] bg-white/[0.03] hover:bg-white/[0.05]"
+            }`}
+          >
+            <p className={`text-sm font-semibold ${paymentMethod === "cash" ? "text-[#D4B896]" : "text-white/60"}`}>Contant</p>
+            <p className="mt-0.5 text-[10px] text-white/30">Bij de chauffeur</p>
+          </button>
         </div>
 
         <div className="mb-4 space-y-2">
@@ -240,7 +289,7 @@ export const BookingWidget = memo(function BookingWidget() {
           disabled={loading}
           className="mb-2.5 h-12 w-full rounded-xl border border-[#D4B896]/40 bg-[#D4B896]/[0.08] text-[15px] font-semibold text-[#D4B896] hover:bg-[#D4B896]/[0.16] disabled:opacity-50"
         >
-          {loading ? <Loader2 className="size-4 animate-spin" /> : <>Boeking bevestigen & betalen <ArrowRight className="size-4" /></>}
+          {loading ? <Loader2 className="size-4 animate-spin" /> : paymentMethod === "cash" ? <>Rit aanvragen <ArrowRight className="size-4" /></> : <>Online betalen <ArrowRight className="size-4" /></>}
         </Button>
 
         <a
