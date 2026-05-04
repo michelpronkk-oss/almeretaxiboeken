@@ -1,4 +1,4 @@
-import { CheckCircle2, Plane, ShieldCheck, Star } from "lucide-react"
+import { CheckCircle2, Plane, Star, Wallet } from "lucide-react"
 
 const items = [
   {
@@ -10,13 +10,13 @@ const items = [
   {
     icon: CheckCircle2,
     main: "Vaste prijs",
-    sub: "geen taxameter",
+    sub: "geen verrassingen achteraf",
     accent: false,
   },
   {
-    icon: ShieldCheck,
-    main: "Veilig betalen",
-    sub: "iDEAL & creditcard",
+    icon: Wallet,
+    main: "Betalen",
+    sub: "iDEAL, creditcard of contant",
     accent: false,
   },
   {
