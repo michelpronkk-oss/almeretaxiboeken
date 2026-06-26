@@ -17,7 +17,29 @@ type SearchParams = Promise<{
   error?: string
   actionStatus?: string
   actionError?: string
+  deleted?: string
 }>
+
+type DriverRow = {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  full_name: string | null
+  email: string | null
+  phone: string | null
+  vehicle_type: string | null
+  license_plate: string | null
+  onboarding_status: string | null
+  approval_status: string | null
+  active: boolean | null
+  is_owner: boolean | null
+  default_assign: boolean | null
+  can_dispatch: boolean | null
+  deleted_at?: string | null
+}
+
+const DRIVER_COLS =
+  "id, first_name, last_name, full_name, email, phone, vehicle_type, license_plate, onboarding_status, approval_status, active, is_owner, default_assign, can_dispatch, deleted_at"
 
 function getSiteUrl() {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
@@ -245,33 +267,79 @@ async function deactivateDriverAction(formData: FormData) {
   redirect(`/admin/chauffeurs?actionStatus=${encodeURIComponent("Chauffeur gedeactiveerd.")}`)
 }
 
+async function restoreDriverAction(formData: FormData) {
+  "use server"
+
+  if (!(await isAdminAuthenticated())) redirect("/admin/login")
+
+  const driverId = String(formData.get("driverId") || "")
+  if (!driverId) return
+
+  const supabase = getSupabaseServiceClient()
+  const { data: driver } = await supabase
+    .from("drivers")
+    .select("id, approval_status, active")
+    .eq("id", driverId)
+    .maybeSingle()
+
+  if (!driver) {
+    redirect(`/admin/chauffeurs?deleted=1&actionError=${encodeURIComponent("Chauffeur niet gevonden.")}`)
+  }
+
+  const approved = driver.approval_status === "approved"
+  const { error } = await supabase
+    .from("drivers")
+    .update({
+      deleted_at: null,
+      status: approved && driver.active ? "available" : approved ? "inactive" : "invited",
+    })
+    .eq("id", driverId)
+
+  if (error) {
+    redirect(`/admin/chauffeurs?deleted=1&actionError=${encodeURIComponent("Herstellen mislukt.")}`)
+  }
+
+  revalidatePath("/admin/chauffeurs")
+  revalidatePath("/admin")
+  redirect(`/admin/chauffeurs?actionStatus=${encodeURIComponent("Chauffeur hersteld.")}`)
+}
+
 export default async function AdminChauffeursPage({ searchParams }: { searchParams: SearchParams }) {
   if (!(await isAdminAuthenticated())) redirect("/admin/login")
 
   const params = await searchParams
   const supabase = getSupabaseServiceClient()
+  const showDeleted = params.deleted === "1"
 
-  const DRIVER_COLS = "id, first_name, last_name, full_name, email, phone, vehicle_type, license_plate, onboarding_status, approval_status, active, is_owner, default_assign, can_dispatch, deleted_at"
-
-  const { data: driversRaw, error: driversError } = await supabase
-    .from("drivers")
-    .select(DRIVER_COLS)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
+  const [visibleRes, deletedRes] = await Promise.all([
+    supabase
+      .from("drivers")
+      .select(DRIVER_COLS)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("drivers")
+      .select(DRIVER_COLS)
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false })
+      .limit(25),
+  ])
 
   // If the filtered query failed (e.g. deleted_at column not yet migrated), fall back
   // to the unfiltered list so approved drivers are never invisible due to a schema gap.
-  let drivers = driversRaw ?? []
-  if (driversError) {
-    console.error("[admin-drivers-list] primary query error:", driversError.message, "— falling back to unfiltered query")
+  let drivers = (visibleRes.data ?? []) as DriverRow[]
+  let deletedDrivers = (deletedRes.data ?? []) as DriverRow[]
+  if (visibleRes.error) {
+    console.error("[admin-drivers-list] primary query error:", visibleRes.error.message, "falling back to unfiltered query")
     const { data: fallback } = await supabase
       .from("drivers")
       .select("id, first_name, last_name, full_name, email, phone, vehicle_type, license_plate, onboarding_status, approval_status, active, is_owner, default_assign, can_dispatch")
       .order("created_at", { ascending: false })
     drivers = (fallback ?? []).map((d) => ({ ...d, deleted_at: null }))
+    deletedDrivers = []
   }
 
-  console.log("[admin-drivers-list] count:", drivers.length)
+  console.log("[admin-drivers-list] active count:", drivers.length, "deleted count:", deletedDrivers.length)
 
   return (
     <section className="space-y-6">
@@ -279,6 +347,25 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
         <h1 className="text-2xl font-bold sm:text-3xl">Chauffeurs</h1>
         <p className="mt-2 text-sm text-[#B7AEA2]">Beheer chauffeurs, voertuigen en beschikbaarheid.</p>
       </div>
+
+      {deletedDrivers.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#3A2D1F] bg-[#141210] p-4">
+          <div>
+            <p className="text-sm font-semibold text-[#F5F1E8]">
+              {deletedDrivers.length} verwijderde chauffeur{deletedDrivers.length !== 1 ? "s" : ""} gevonden
+            </p>
+            <p className="mt-1 text-xs text-[#8F877D]">
+              Ze zijn niet weg uit de database, maar verborgen door soft-delete.
+            </p>
+          </div>
+          <Link
+            href={showDeleted ? "/admin/chauffeurs" : "/admin/chauffeurs?deleted=1"}
+            className="rounded-lg border border-[#3A2D1F] px-3 py-2 text-xs font-semibold text-[#D6B58A] hover:bg-[#1B1815]"
+          >
+            {showDeleted ? "Verberg verwijderde" : "Toon verwijderde"}
+          </Link>
+        </div>
+      ) : null}
 
       {/* Invite card */}
       <div className="rounded-2xl border border-[#292520] bg-[#141210] p-5">
@@ -331,12 +418,14 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
       {/* Mobile cards */}
       <div className="space-y-3 lg:hidden">
         {!drivers?.length ? (
-          <p className="text-sm text-[#8F877D]">Geen chauffeurs gevonden.</p>
+          <p className="text-sm text-[#8F877D]">
+            Geen actieve chauffeurs gevonden.{deletedDrivers.length > 0 ? " Bekijk verwijderde chauffeurs om ze te herstellen." : ""}
+          </p>
         ) : null}
         {drivers?.map((driver) => {
           const firstLast = [driver.first_name, driver.last_name].filter(Boolean).join(" ")
           const name = firstLast || driver.full_name || "Nog niet ingevuld"
-              const isOwner = driver.is_owner || driver.default_assign
+              const isOwner = Boolean(driver.is_owner || driver.default_assign)
               const canResendInvite = !driver.active && driver.approval_status !== "approved" && driver.onboarding_status !== "submitted"
               const statusLabel =
                 driver.active ? "Actief"
@@ -442,7 +531,7 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
             {drivers?.map((driver) => {
               const firstLast = [driver.first_name, driver.last_name].filter(Boolean).join(" ")
               const name = firstLast || driver.full_name || "Nog niet ingevuld"
-              const isOwner = driver.is_owner || driver.default_assign
+              const isOwner = Boolean(driver.is_owner || driver.default_assign)
               const canResendInvite = !driver.active && driver.approval_status !== "approved" && driver.onboarding_status !== "submitted"
               return (
                 <tr key={driver.id} className="border-b border-[#292520]/60 align-top">
@@ -516,6 +605,39 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
           </tbody>
         </table>
       </div>
+
+      {showDeleted && deletedDrivers.length > 0 ? (
+        <section className="space-y-3 rounded-2xl border border-[#3A2D1F] bg-[#141210] p-4">
+          <div>
+            <h2 className="text-lg font-semibold text-[#F5F1E8]">Verwijderde chauffeurs</h2>
+            <p className="mt-1 text-xs text-[#8F877D]">Herstel een chauffeur om deze weer in de normale lijst te tonen.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {deletedDrivers.map((driver) => {
+              const firstLast = [driver.first_name, driver.last_name].filter(Boolean).join(" ")
+              const name = firstLast || driver.full_name || "Nog niet ingevuld"
+              return (
+                <article key={driver.id} className="rounded-xl border border-[#292520] bg-[#0D0C0B] p-4">
+                  <p className="font-semibold text-[#F5F1E8]">{name}</p>
+                  <p className="mt-1 break-all text-xs text-[#B7AEA2]">{driver.email || "-"}</p>
+                  <p className="mt-1 text-xs text-[#8F877D]">
+                    Verwijderd: {driver.deleted_at ? new Date(driver.deleted_at).toLocaleString("nl-NL") : "-"}
+                  </p>
+                  <form action={restoreDriverAction} className="mt-3">
+                    <input type="hidden" name="driverId" value={driver.id} />
+                    <PendingSubmitButton
+                      idleLabel="Herstellen"
+                      pendingLabel="Herstellen..."
+                      className="rounded-lg border border-[#22A06B]/40 px-3 py-2 text-xs font-semibold text-[#9de2c5] hover:bg-[#22A06B]/10"
+                    />
+                  </form>
+                </article>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
     </section>
   )
 }
+
