@@ -25,6 +25,10 @@ export const metadata: Metadata = {
   title: "Dashboard | AlmereTaxiBoeken Admin",
 }
 
+type AdminPageProps = {
+  searchParams: Promise<{ sync?: string | string[] }>
+}
+
 // ── Tiny UI helpers ──────────────────────────────────────────────────────────
 
 function cn(...classes: (string | false | undefined)[]) {
@@ -207,11 +211,13 @@ function ConfigRow({ label, configured }: { label: string; configured: boolean }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function AdminPage() {
+export default async function AdminPage({ searchParams }: AdminPageProps) {
   const authenticated = await isAdminAuthenticated()
   if (!authenticated) redirect("/admin/login")
 
-  await syncRecentPendingMollieBookings()
+  const params = await searchParams
+  const shouldSyncPayments = params.sync === "payments"
+  const syncResult = shouldSyncPayments ? await syncRecentPendingMollieBookings(25) : null
   const m = await getDashboardMetrics()
 
   // Website performance env checks (server-side)
@@ -266,6 +272,26 @@ export default async function AdminPage() {
               Betaalde boekingen verschijnen hier automatisch nadat{" "}
               <code className="rounded bg-white/5 px-1 text-[#D6B58A]">payment_status = paid</code>{" "}
               is opgeslagen.
+            </p>
+            <Link
+              href="/admin?sync=payments"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[#3A2D1F] px-3 py-1.5 text-xs font-semibold text-[#D6B58A] transition-colors hover:bg-[#1B1815]"
+            >
+              Betaalstatus synchroniseren
+              <ArrowRight className="size-3" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {syncResult && (
+        <div className="flex items-start gap-3 rounded-xl border border-[#22A06B]/20 bg-[#22A06B]/[0.05] p-4">
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[#22A06B]" />
+          <div>
+            <p className="text-sm font-semibold text-[#F5F1E8]">Betaalstatus gecontroleerd</p>
+            <p className="mt-1 text-xs leading-relaxed text-[#7F776E]">
+              {syncResult.checked} Mollie betaling{syncResult.checked !== 1 ? "en" : ""} gecontroleerd,
+              {" "}{syncResult.updated} boeking{syncResult.updated !== 1 ? "en" : ""} bijgewerkt.
             </p>
           </div>
         </div>

@@ -1,9 +1,3 @@
-"use client"
-
-// All below-the-fold sections live here so framer-motion is code-split from
-// the above-fold initial bundle. This component loads in a separate JS chunk.
-
-import { motion } from "framer-motion"
 import Link from "next/link"
 import {
   ArrowRight,
@@ -19,14 +13,9 @@ import {
   Users,
   Zap,
 } from "lucide-react"
-import { BookingWidget } from "@/components/booking-widget"
 
 const PHONE = "+31853038136"
 const PHONE_DISPLAY = "085 303 8136"
-
-const ease = [0.25, 0.46, 0.45, 0.94] as [number, number, number, number]
-const fade = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease } } }
-const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.09 } } }
 
 const steps = [
   { num: "01", icon: MapPin,       title: "Vul uw route in",         desc: "Kies vertrekpunt, bestemming, datum, tijd en het aantal passagiers." },
@@ -66,30 +55,28 @@ const trustSignals = [
   { icon: Users,       label: "Zakelijk & particulier", sublabel: "voor elke reiziger" },
 ]
 
-const VP = { once: true, margin: "-60px" }
-
 export default function BelowFold() {
   return (
     <>
       {/* ── How it works ─────────────────────────────────── */}
       <section className="border-y border-[#1F1C18] bg-[#0D0C0B] py-20">
         <div className="mx-auto max-w-6xl px-6">
-          <motion.div initial="hidden" whileInView="visible" viewport={VP} variants={stagger}>
-            <motion.div variants={fade} className="mb-10">
+          <div>
+            <div className="mb-10">
               <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-[#D6B58A]">Hoe het werkt</p>
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Zo boekt u uw rit</h2>
-            </motion.div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {steps.map((step) => (
-                <motion.div key={step.num} variants={fade} className="group rounded-2xl border border-[#292520] bg-[#151311] p-6 transition-colors hover:border-[#D6B58A]/20 hover:bg-[#1B1815]">
+                <div key={step.num} className="group rounded-2xl border border-[#292520] bg-[#151311] p-6 transition-colors hover:border-[#D6B58A]/20 hover:bg-[#1B1815]">
                   <span className="mb-4 block text-3xl font-black leading-none text-[#D6B58A]/[0.15]">{step.num}</span>
                   <step.icon className="mb-3 size-5 text-[#D6B58A]" />
                   <h3 className="mb-1.5 text-sm font-semibold text-[#F5F1E8]">{step.title}</h3>
                   <p className="text-xs leading-relaxed text-[#7F776E]">{step.desc}</p>
-                </motion.div>
+                </div>
               ))}
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -119,14 +106,14 @@ export default function BelowFold() {
       {/* ── Services ─────────────────────────────────────── */}
       <section id="diensten" className="border-y border-[#1F1C18] bg-[#0D0C0B] py-20">
         <div className="mx-auto max-w-6xl px-6">
-          <motion.div initial="hidden" whileInView="visible" viewport={VP} variants={stagger}>
-            <motion.div variants={fade} className="mb-10">
+          <div>
+            <div className="mb-10">
               <p className="mb-2.5 text-[11px] font-medium uppercase tracking-[0.14em] text-[#D6B58A]">Onze diensten</p>
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">Wij rijden u naar elke bestemming</h2>
-            </motion.div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-3">
               {services.map((s) => (
-                <motion.div key={s.title} variants={fade} className="group rounded-2xl border border-[#292520] bg-[#151311] p-7 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D6B58A]/20 hover:bg-[#1B1815]">
+                <div key={s.title} className="group rounded-2xl border border-[#292520] bg-[#151311] p-7 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D6B58A]/20 hover:bg-[#1B1815]">
                   <div className="mb-5 inline-flex size-11 items-center justify-center rounded-xl bg-[#D6B58A]/[0.09] transition-colors group-hover:bg-[#D6B58A]/[0.14]">
                     <s.icon className="size-5 text-[#D6B58A]" />
                   </div>
@@ -136,24 +123,24 @@ export default function BelowFold() {
                   <Link href={s.href} className="inline-flex items-center gap-1.5 text-xs font-medium text-[#D6B58A]/60 transition-colors hover:text-[#D6B58A]">
                     Meer informatie <ArrowRight className="size-3" />
                   </Link>
-                </motion.div>
+                </div>
               ))}
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ── Popular routes ───────────────────────────────── */}
       <section className="py-20">
         <div className="mx-auto max-w-6xl px-6">
-          <motion.div initial="hidden" whileInView="visible" viewport={VP} variants={stagger}>
-            <motion.div variants={fade} className="mb-8">
+          <div>
+            <div className="mb-8">
               <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-[#D6B58A]">Populaire routes</p>
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Veel geboekte ritten</h2>
-            </motion.div>
+            </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {popularRoutes.map((route) => (
-                <motion.div key={route.to} variants={fade}>
+                <div key={route.to}>
                   <Link href={route.href} className="group flex items-center justify-between rounded-xl border border-[#292520] bg-[#151311] px-5 py-4 transition-all hover:border-[#D6B58A]/20 hover:bg-[#1B1815]">
                     <div className="flex items-center gap-3.5">
                       <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#D6B58A]/[0.07] transition-colors group-hover:bg-[#D6B58A]/[0.12]">
@@ -166,47 +153,47 @@ export default function BelowFold() {
                     </div>
                     <span className="text-xs font-medium text-[#D6B58A] opacity-0 transition-opacity group-hover:opacity-100">Bereken →</span>
                   </Link>
-                </motion.div>
+                </div>
               ))}
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ── Why AlmereTaxiBoeken ─────────────────────────── */}
       <section id="waarom-ons" className="border-y border-[#1F1C18] bg-[#0D0C0B] py-20">
         <div className="mx-auto max-w-6xl px-6">
-          <motion.div initial="hidden" whileInView="visible" viewport={VP} variants={stagger}>
-            <motion.div variants={fade} className="mb-10">
+          <div>
+            <div className="mb-10">
               <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-[#D6B58A]">Onze beloftes</p>
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Waarom AlmereTaxiBoeken</h2>
-            </motion.div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {pillars.map((p) => (
-                <motion.div key={p.title} variants={fade} className="group rounded-2xl border border-[#292520] bg-[#151311] p-6 transition-all hover:border-[#D6B58A]/20 hover:bg-[#1B1815]">
+                <div key={p.title} className="group rounded-2xl border border-[#292520] bg-[#151311] p-6 transition-all hover:border-[#D6B58A]/20 hover:bg-[#1B1815]">
                   <div className="mb-4 inline-flex size-10 items-center justify-center rounded-xl bg-[#D6B58A]/[0.08] transition-colors group-hover:bg-[#D6B58A]/[0.13]">
                     <p.icon className="size-5 text-[#D6B58A]" />
                   </div>
                   <h3 className="mb-2 text-sm font-semibold text-[#F5F1E8]">{p.title}</h3>
                   <p className="text-xs leading-relaxed text-[#7F776E]">{p.desc}</p>
-                </motion.div>
+                </div>
               ))}
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ── Trust signals ────────────────────────────────── */}
       <section className="py-16">
         <div className="mx-auto max-w-6xl px-6">
-          <motion.div initial="hidden" whileInView="visible" viewport={VP} variants={stagger}>
-            <motion.div variants={fade} className="mb-8 text-center">
+          <div>
+            <div className="mb-8 text-center">
               <h2 className="text-2xl font-bold tracking-tight">Vertrouwd door reizigers in Almere</h2>
               <p className="mt-2 text-sm text-[#7F776E]">Zekerheid, vaste prijzen en professioneel vervoer. Dat zijn onze uitgangspunten.</p>
-            </motion.div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {trustSignals.map((t) => (
-                <motion.div key={t.label} variants={fade} className="flex flex-col items-center gap-3 rounded-2xl border border-[#292520] bg-[#151311] px-5 py-7 text-center">
+                <div key={t.label} className="flex flex-col items-center gap-3 rounded-2xl border border-[#292520] bg-[#151311] px-5 py-7 text-center">
                   <div className="flex size-11 items-center justify-center rounded-xl bg-[#D6B58A]/[0.08]">
                     <t.icon className="size-5 text-[#D6B58A]" />
                   </div>
@@ -214,10 +201,10 @@ export default function BelowFold() {
                     <p className="text-2xl font-black leading-tight text-[#F5F1E8]">{t.label}</p>
                   </div>
                   <p className="text-xs text-[#7F776E]">{t.sublabel}</p>
-                </motion.div>
+                </div>
               ))}
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -248,11 +235,11 @@ export default function BelowFold() {
       {/* ── CTA ──────────────────────────────────────────── */}
       <section id="contact" className="py-24">
         <div className="mx-auto max-w-6xl px-6">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
-            <motion.div variants={fade} className="relative overflow-hidden rounded-2xl border border-[#D6B58A]/[0.11] px-8 py-12 md:px-12">
+          <div>
+            <div className="relative overflow-hidden rounded-2xl border border-[#D6B58A]/[0.11] px-8 py-12 md:px-12">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_0%,rgba(214,181,138,0.07),transparent)]" />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#D6B58A]/[0.03] to-transparent" />
-              <div className="relative z-10 grid items-center gap-10 lg:grid-cols-[1fr_0.9fr]">
+              <div className="relative z-10 grid items-center gap-10 lg:grid-cols-[1fr_auto]">
                 <div className="flex flex-col gap-5">
                   <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#D6B58A]">Rit boeken</p>
                   <h2 className="font-display text-3xl font-black leading-tight tracking-tight text-[#F5F1E8] sm:text-4xl lg:text-5xl">Klaar om te rijden?</h2>
@@ -261,10 +248,12 @@ export default function BelowFold() {
                     <Phone className="size-3.5" /> Liever bellen? {PHONE_DISPLAY}
                   </a>
                 </div>
-                <BookingWidget />
+                <Link href="/#boeken" className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-[#D6B58A]/50 bg-[#D6B58A]/[0.08] px-7 text-[15px] font-semibold text-[#D6B58A] transition-colors hover:bg-[#D6B58A]/[0.14]">
+                  Bereken uw ritprijs <ArrowRight className="size-4" />
+                </Link>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         </div>
       </section>
     </>

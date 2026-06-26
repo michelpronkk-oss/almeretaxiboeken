@@ -111,7 +111,7 @@ export function HeroSection() {
         </div>
 
         {/* ── Right: booking widget ── */}
-        <div className="atb-fade-up atb-delay-widget relative">
+        <div id="boeken" className="atb-fade-up atb-delay-widget relative scroll-mt-24">
           {/* Ambient glow — desktop only */}
           <div
             className="pointer-events-none absolute -inset-4 hidden rounded-3xl bg-[#D6B58A]/[0.05] blur-xl sm:block"

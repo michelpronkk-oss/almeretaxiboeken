@@ -1,6 +1,6 @@
 // Server Component — no "use client".
-// framer-motion lives only in the code-split BelowFold chunk.
-// Above-fold: server HTML + CSS animations. No framer-motion in initial JS bundle.
+// Above-fold: server HTML + CSS animations.
+// Below-fold: server-rendered static sections to keep homepage JS small.
 
 import dynamic from "next/dynamic"
 import Image from "next/image"
@@ -9,9 +9,8 @@ import { SiteFooter } from "@/components/site-footer"
 import { TrustBar } from "@/components/trust-bar"
 import { HeroSection } from "@/components/home/hero-section"
 
-// Code-split: loads in a separate JS chunk after first paint.
+// Keep below-fold content separate while preserving server HTML.
 // ssr: true keeps content in server HTML (no layout shift, SEO preserved).
-// The JS for this chunk is deferred — framer-motion only downloads when needed.
 const BelowFold = dynamic(
   () => import("@/components/home/below-fold"),
   { ssr: true }
@@ -68,7 +67,7 @@ export default function Home() {
 
         <TrustBar />
 
-        {/* ── Below fold — framer-motion, code-split JS chunk ── */}
+        {/* ── Below fold — server-rendered static content ── */}
         <BelowFold />
       </main>
 
