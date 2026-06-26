@@ -37,15 +37,14 @@ export async function POST(request: NextRequest) {
   const { error } = await supabase
     .from("drivers")
     .update({
-      deleted_at: new Date().toISOString(),
       active: false,
-      status: "deleted",
+      status: "inactive",
     })
     .eq("id", driverId)
 
   if (error) {
-    return Response.json({ success: false, message: "Verwijderen mislukt." }, { status: 500 })
+    return Response.json({ success: false, message: "Deactiveren mislukt." }, { status: 500 })
   }
 
-  return Response.json({ success: true, reason: reason || undefined })
+  return Response.json({ success: true, message: "Chauffeur gedeactiveerd.", reason: reason || undefined })
 }

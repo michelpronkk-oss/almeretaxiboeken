@@ -7,6 +7,7 @@ import DeleteBookingButton from "@/components/internal/delete-booking-button"
 import { isAdminAuthenticated } from "@/lib/admin-auth"
 import { formatCurrencyEUR, formatPassengerVehicle } from "@/lib/format"
 import { getAmsterdamTodayString } from "@/lib/date"
+import { restoreSoftDeletedDrivers } from "@/lib/drivers/restore-soft-deleted"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 type SearchParams = Promise<{ filter?: string; status?: string; error?: string; warning?: string }>
@@ -31,6 +32,7 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
   const today = getAmsterdamTodayString()
 
   const supabase = getSupabaseServiceClient()
+  await restoreSoftDeletedDrivers()
   const { data: drivers } = await supabase
     .from("drivers")
     .select("id, full_name, active")

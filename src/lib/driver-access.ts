@@ -1,4 +1,5 @@
 import "server-only"
+import { restoreSoftDeletedDriver } from "@/lib/drivers/restore-soft-deleted"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 import { createRawToken, hashToken } from "@/lib/chauffeur/tokens"
 
@@ -44,12 +45,19 @@ export async function consumeDriverAccessToken(token: string) {
 
   const { data: driver, error: driverError } = await supabase
     .from("drivers")
-    .select("id, active, approval_status")
+    .select("id, active, approval_status, deleted_at")
     .eq("id", row.driver_id)
     .maybeSingle()
 
   const driverFound = Boolean(driver) && !driverError
-  const driverApproved = Boolean(driver?.active && driver?.approval_status === "approved")
+  if (driver?.deleted_at && driver.approval_status === "approved") {
+    const restored = await restoreSoftDeletedDriver(driver.id)
+    if (restored.restored) {
+      driver.deleted_at = null
+      driver.active = true
+    }
+  }
+  const driverApproved = Boolean(driver?.active && driver?.approval_status === "approved" && !driver?.deleted_at)
 
   if (driverError || !driver) return { ok: false as const, reason: "invalid" as const, tokenFound, isUsed: false, isExpired: false, driverFound: false, driverApproved: false }
   if (!driverApproved) return { ok: false as const, reason: "not_approved" as const, tokenFound, isUsed: false, isExpired: false, driverFound, driverApproved }

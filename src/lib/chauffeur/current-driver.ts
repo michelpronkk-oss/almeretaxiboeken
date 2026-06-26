@@ -1,5 +1,6 @@
 import "server-only"
 import { getChauffeurSession } from "@/lib/chauffeur-auth"
+import { restoreSoftDeletedDriver } from "@/lib/drivers/restore-soft-deleted"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -105,7 +106,6 @@ function toCurrentDriver(row: RawRow): CurrentDriver {
 
 function isValid(row: RawRow): boolean {
   if (!row.active || row.approval_status !== "approved") return false
-  if (row.deleted_at) return false
   return true
 }
 
@@ -223,6 +223,12 @@ export async function getCurrentChauffeurDriver(): Promise<DriverAuthResult> {
   }
 
   if (!row) return { ok: false, code: "DRIVER_NOT_FOUND" }
+  if (row.deleted_at && row.approval_status === "approved") {
+    const restored = await restoreSoftDeletedDriver(row.id)
+    if (restored.restored) {
+      row = { ...row, deleted_at: null, active: true }
+    }
+  }
   if (!isValid(row)) return { ok: false, code: "DRIVER_NOT_APPROVED" }
 
   return { ok: true, driver: toCurrentDriver(row) }

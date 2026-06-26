@@ -2,12 +2,12 @@ import Link from "next/link"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import PendingSubmitButton from "@/components/internal/pending-submit-button"
-import DeleteDriverButton from "@/components/internal/delete-driver-button"
 import { isAdminAuthenticated } from "@/lib/admin-auth"
 import { createDriverAccessToken } from "@/lib/driver-access"
 import { sendDriverApprovedEmail } from "@/lib/driver-access-email"
 import { sendDriverInviteEmail } from "@/lib/driver-invite-email"
 import { generateInviteToken, hashInviteToken, inviteExpiresAt } from "@/lib/driver-invite"
+import { restoreSoftDeletedDrivers } from "@/lib/drivers/restore-soft-deleted"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 type SearchParams = Promise<{
@@ -310,6 +310,7 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
   const params = await searchParams
   const supabase = getSupabaseServiceClient()
   const showDeleted = params.deleted === "1"
+  const recovery = await restoreSoftDeletedDrivers()
 
   const [visibleRes, deletedRes] = await Promise.all([
     supabase
@@ -339,7 +340,14 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
     deletedDrivers = []
   }
 
-  console.log("[admin-drivers-list] active count:", drivers.length, "deleted count:", deletedDrivers.length)
+  console.log(
+    "[admin-drivers-list] active count:",
+    drivers.length,
+    "deleted count:",
+    deletedDrivers.length,
+    "restored:",
+    recovery.restored,
+  )
 
   return (
     <section className="space-y-6">
@@ -347,6 +355,12 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
         <h1 className="text-2xl font-bold sm:text-3xl">Chauffeurs</h1>
         <p className="mt-2 text-sm text-[#B7AEA2]">Beheer chauffeurs, voertuigen en beschikbaarheid.</p>
       </div>
+
+      {recovery.restored > 0 ? (
+        <p className="rounded-lg border border-[#22A06B]/30 bg-[#22A06B]/10 px-3 py-2 text-xs text-[#9de2c5]">
+          {recovery.restored} chauffeur{recovery.restored !== 1 ? "s" : ""} automatisch hersteld en weer actief gemaakt.
+        </p>
+      ) : null}
 
       {deletedDrivers.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#3A2D1F] bg-[#141210] p-4">
@@ -425,7 +439,6 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
         {drivers?.map((driver) => {
           const firstLast = [driver.first_name, driver.last_name].filter(Boolean).join(" ")
           const name = firstLast || driver.full_name || "Nog niet ingevuld"
-              const isOwner = Boolean(driver.is_owner || driver.default_assign)
               const canResendInvite = !driver.active && driver.approval_status !== "approved" && driver.onboarding_status !== "submitted"
               const statusLabel =
                 driver.active ? "Actief"
@@ -500,11 +513,6 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
                     className="rounded-lg border border-[#D94A4A]/40 px-3 py-2 text-xs text-[#ffb4b4] hover:bg-[#D94A4A]/10"
                   />
                 </form>
-                <DeleteDriverButton
-                  driverId={driver.id}
-                  driverName={name}
-                  isOwner={isOwner}
-                />
               </div>
             </article>
           )
@@ -531,7 +539,6 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
             {drivers?.map((driver) => {
               const firstLast = [driver.first_name, driver.last_name].filter(Boolean).join(" ")
               const name = firstLast || driver.full_name || "Nog niet ingevuld"
-              const isOwner = Boolean(driver.is_owner || driver.default_assign)
               const canResendInvite = !driver.active && driver.approval_status !== "approved" && driver.onboarding_status !== "submitted"
               return (
                 <tr key={driver.id} className="border-b border-[#292520]/60 align-top">
@@ -592,11 +599,6 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
                           className="rounded-md border border-[#D94A4A]/40 px-2 py-1 text-xs text-[#ffb4b4] hover:bg-[#D94A4A]/10"
                         />
                       </form>
-                      <DeleteDriverButton
-                        driverId={driver.id}
-                        driverName={name}
-                        isOwner={isOwner}
-                      />
                     </div>
                   </td>
                 </tr>
