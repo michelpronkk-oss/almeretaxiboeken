@@ -1,13 +1,17 @@
 import "server-only"
 import { cookies } from "next/headers"
+import { createSignedCookieValue, readSignedCookieValue } from "@/lib/signed-cookie"
 
 export const CHAUFFEUR_SESSION_COOKIE = "chauffeur_session"
 
+type ChauffeurSession = {
+  driverId: string
+  iat: number
+}
+
 export async function setChauffeurSession(driverId: string) {
   const store = await cookies()
-  // Store as JSON so future formats (signed, extra claims) are backward-compatible.
-  // Readers must parse JSON first and fall back to treating the raw value as a plain UUID.
-  const value = JSON.stringify({ driverId })
+  const value = createSignedCookieValue({ driverId, iat: Date.now() } satisfies ChauffeurSession)
   store.set(CHAUFFEUR_SESSION_COOKIE, value, {
     httpOnly: true,
     sameSite: "lax",
@@ -19,12 +23,12 @@ export async function setChauffeurSession(driverId: string) {
 
 export async function getChauffeurSession(): Promise<string> {
   const store = await cookies()
-  return store.get(CHAUFFEUR_SESSION_COOKIE)?.value ?? ""
+  const session = readSignedCookieValue<ChauffeurSession>(store.get(CHAUFFEUR_SESSION_COOKIE)?.value ?? "")
+  return session?.driverId ? JSON.stringify({ driverId: session.driverId }) : ""
 }
 
 export async function clearChauffeurSession() {
   const store = await cookies()
-  // Clear both path variants: legacy sessions used path=/chauffeur, current use path=/
   store.set(CHAUFFEUR_SESSION_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",

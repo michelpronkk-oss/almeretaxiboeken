@@ -1,11 +1,17 @@
-﻿import "server-only"
+import "server-only"
 import { cookies } from "next/headers"
+import { createSignedCookieValue, readSignedCookieValue } from "@/lib/signed-cookie"
 
 export const ADMIN_COOKIE_NAME = "atb_admin_auth"
 
-export async function setAdminAuthCookie(value: string) {
+type AdminSession = {
+  role: "admin"
+  iat: number
+}
+
+export async function setAdminAuthCookie() {
   const store = await cookies()
-  store.set(ADMIN_COOKIE_NAME, value, {
+  store.set(ADMIN_COOKIE_NAME, createSignedCookieValue({ role: "admin", iat: Date.now() } satisfies AdminSession), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -20,8 +26,8 @@ export async function clearAdminAuthCookie() {
 }
 
 export async function isAdminAuthenticated() {
-  const password = process.env.ADMIN_ACCESS_PASSWORD
-  if (!password) return false
+  if (!process.env.ADMIN_ACCESS_PASSWORD) return false
   const store = await cookies()
-  return store.get(ADMIN_COOKIE_NAME)?.value === password
+  const session = readSignedCookieValue<AdminSession>(store.get(ADMIN_COOKIE_NAME)?.value ?? "")
+  return session?.role === "admin"
 }

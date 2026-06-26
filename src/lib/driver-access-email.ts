@@ -9,7 +9,7 @@ function sender() {
 function siteUrl() {
   const configured = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "")
   if (process.env.NODE_ENV === "production" && /localhost/i.test(configured)) {
-    return "https://almeretaxiboeken.nl"
+    return "https://www.almeretaxiboeken.nl"
   }
   return configured
 }

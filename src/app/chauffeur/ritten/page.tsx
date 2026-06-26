@@ -4,7 +4,9 @@ import { getSupabaseServiceClient } from "@/lib/supabase/server"
 import RideOpsControls from "@/components/chauffeur/ride-ops-controls"
 import CashCollectButton from "@/components/chauffeur/cash-collect-button"
 import DispatcherAssignControl from "@/components/chauffeur/dispatcher-assign-control"
+import { CONFIRMED_PAYMENT_STATUSES } from "@/lib/bookings"
 import { formatCurrencyEUR } from "@/lib/format"
+import { getAmsterdamTodayString } from "@/lib/date"
 import { Clock, MapPin, Phone, Users } from "lucide-react"
 
 const STATUS_INFO: Record<string, { label: string; style: string }> = {
@@ -48,6 +50,7 @@ type Ride = {
   vehicle_type: string | null
   booking_status: string | null
   payment_method: string | null
+  payment_status: string | null
   cash_amount_due: number | null
   cash_collection_status: string | null
   assigned_driver_id: string | null
@@ -65,13 +68,14 @@ export default async function ChauffeurRittenPage() {
   if (!driver) redirect("/chauffeur/login")
 
   const supabase = getSupabaseServiceClient()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = getAmsterdamTodayString()
   const isDispatcher = driver.can_dispatch
 
   const ridesQuery = isDispatcher
     ? supabase
         .from("bookings")
-        .select("id, reference, pickup_date, pickup_time, pickup_address, destination_address, customer_name, customer_phone, passengers, vehicle_type, booking_status, payment_method, cash_amount_due, cash_collection_status, assigned_driver_id")
+        .select("id, reference, pickup_date, pickup_time, pickup_address, destination_address, customer_name, customer_phone, passengers, vehicle_type, booking_status, payment_method, payment_status, cash_amount_due, cash_collection_status, assigned_driver_id")
+        .in("payment_status", CONFIRMED_PAYMENT_STATUSES)
         .gte("pickup_date", today)
         .is("deleted_at", null)
         .order("pickup_date", { ascending: true })
@@ -79,7 +83,8 @@ export default async function ChauffeurRittenPage() {
         .limit(200)
     : supabase
         .from("bookings")
-        .select("id, reference, pickup_date, pickup_time, pickup_address, destination_address, customer_name, customer_phone, passengers, vehicle_type, booking_status, payment_method, cash_amount_due, cash_collection_status, assigned_driver_id")
+        .select("id, reference, pickup_date, pickup_time, pickup_address, destination_address, customer_name, customer_phone, passengers, vehicle_type, booking_status, payment_method, payment_status, cash_amount_due, cash_collection_status, assigned_driver_id")
+        .in("payment_status", CONFIRMED_PAYMENT_STATUSES)
         .eq("assigned_driver_id", driver.id)
         .gte("pickup_date", today)
         .is("deleted_at", null)

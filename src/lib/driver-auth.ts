@@ -5,7 +5,7 @@ import { getCurrentChauffeurDriver } from "@/lib/chauffeur/current-driver"
 
 export const DRIVER_COOKIE_NAME = "chauffeur_session"
 
-export async function setDriverAuthCookie(_driverId: string) {
+export async function setDriverAuthCookie() {
   throw new Error("Deprecated: use setChauffeurSession from src/lib/chauffeur-auth.ts")
 }
 

@@ -296,7 +296,7 @@ export async function POST(request: NextRequest) {
     note: noteBase,
   })
 
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://almeretaxiboeken.nl").replace(/\/$/, "")
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.almeretaxiboeken.nl").replace(/\/$/, "")
   const webhookUrl = process.env.MOLLIE_WEBHOOK_URL || `${siteUrl}/api/mollie/webhook`
   const redirectUrl = new URL(`${siteUrl}/boeking/bedankt`)
   redirectUrl.searchParams.set("bookingId", booking.id)

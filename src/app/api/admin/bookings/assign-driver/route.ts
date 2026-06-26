@@ -2,6 +2,7 @@
 import { isAdminAuthenticated } from "@/lib/admin-auth"
 import { sendEmail } from "@/lib/email/send"
 import { driverAssignedRideEmail } from "@/lib/email/templates"
+import { CONFIRMED_PAYMENT_STATUSES } from "@/lib/bookings"
 import { computeBufferAfterMinutes, computeRideWindow, windowsOverlap } from "@/lib/operations"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
@@ -29,12 +30,19 @@ export async function POST(request: NextRequest) {
 
   const { data: booking, error: bookingError } = await supabase
     .from("bookings")
-    .select("id, reference, pickup_date, pickup_time, pickup_address, destination_address, duration_minutes, vehicle_type")
+    .select("id, reference, pickup_date, pickup_time, pickup_address, destination_address, duration_minutes, vehicle_type, payment_status")
     .eq("id", bookingId)
     .maybeSingle()
 
   if (bookingError || !booking) {
     return Response.json({ success: false, message: "Rit niet gevonden." }, { status: 404 })
+  }
+
+  if (!CONFIRMED_PAYMENT_STATUSES.includes(booking.payment_status ?? "")) {
+    return Response.json(
+      { success: false, message: "Deze rit is nog niet bevestigd of betaald." },
+      { status: 400 },
+    )
   }
 
   const newBuffer = computeBufferAfterMinutes({
@@ -62,6 +70,7 @@ export async function POST(request: NextRequest) {
     .select("id, reference, pickup_date, pickup_time, pickup_address, destination_address, duration_minutes, vehicle_type")
     .eq("assigned_driver_id", driverId)
     .eq("pickup_date", booking.pickup_date)
+    .in("payment_status", CONFIRMED_PAYMENT_STATUSES)
     .in("booking_status", activeStatuses)
 
   let conflict: null | {

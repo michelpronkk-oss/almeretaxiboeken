@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { getCurrentChauffeurDriver } from "@/lib/chauffeur/current-driver"
 import { canDispatch } from "@/lib/chauffeur/permissions"
+import { CONFIRMED_PAYMENT_STATUSES } from "@/lib/bookings"
 import { sendEmail } from "@/lib/email/send"
 import { driverAssignedRideEmail } from "@/lib/email/templates"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
   const { data: booking } = await supabase
     .from("bookings")
     .select(
-      "id, reference, pickup_date, pickup_time, pickup_address, destination_address, vehicle_type, booking_status, deleted_at, archived_at",
+      "id, reference, pickup_date, pickup_time, pickup_address, destination_address, vehicle_type, booking_status, payment_status, deleted_at, archived_at",
     )
     .eq("id", bookingId)
     .maybeSingle()
@@ -74,6 +75,13 @@ export async function POST(request: NextRequest) {
   if (booking.deleted_at || booking.archived_at) {
     return Response.json(
       { success: false, message: "Rit is verwijderd of gearchiveerd." },
+      { status: 400 },
+    )
+  }
+
+  if (!CONFIRMED_PAYMENT_STATUSES.includes(booking.payment_status ?? "")) {
+    return Response.json(
+      { success: false, message: "Deze rit is nog niet bevestigd of betaald." },
       { status: 400 },
     )
   }

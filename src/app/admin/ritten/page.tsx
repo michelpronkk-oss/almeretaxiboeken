@@ -6,6 +6,7 @@ import AdminExceptionActions from "@/components/internal/admin-exception-actions
 import DeleteBookingButton from "@/components/internal/delete-booking-button"
 import { isAdminAuthenticated } from "@/lib/admin-auth"
 import { formatCurrencyEUR, formatPassengerVehicle } from "@/lib/format"
+import { getAmsterdamTodayString } from "@/lib/date"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
 
 type SearchParams = Promise<{ filter?: string; status?: string; error?: string; warning?: string }>
@@ -27,7 +28,7 @@ export default async function AdminRittenPage({ searchParams }: { searchParams: 
 
   const params = await searchParams
   const filter = params.filter || "alle"
-  const today = new Date().toISOString().slice(0, 10)
+  const today = getAmsterdamTodayString()
 
   const supabase = getSupabaseServiceClient()
   const { data: drivers } = await supabase

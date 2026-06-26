@@ -2,6 +2,8 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getAuthenticatedDriver } from "@/lib/driver-auth"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
+import { CONFIRMED_PAYMENT_STATUSES } from "@/lib/bookings"
+import { getAmsterdamTodayString } from "@/lib/date"
 import { ArrowRight, Car, CheckCircle2, Clock, MapPin } from "lucide-react"
 
 export default async function ChauffeurPage() {
@@ -9,7 +11,7 @@ export default async function ChauffeurPage() {
   if (!driver) redirect("/chauffeur/login")
 
   const supabase = getSupabaseServiceClient()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = getAmsterdamTodayString()
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? "Goedemorgen" : hour < 18 ? "Goedemiddag" : "Goedenavond"
@@ -26,11 +28,13 @@ export default async function ChauffeurPage() {
       ? supabase
           .from("bookings")
           .select("id", { count: "exact", head: true })
+          .in("payment_status", CONFIRMED_PAYMENT_STATUSES)
           .eq("pickup_date", today)
           .is("deleted_at", null)
       : supabase
           .from("bookings")
           .select("id", { count: "exact", head: true })
+          .in("payment_status", CONFIRMED_PAYMENT_STATUSES)
           .eq("assigned_driver_id", driver.id)
           .eq("pickup_date", today)
           .is("deleted_at", null),
@@ -38,23 +42,27 @@ export default async function ChauffeurPage() {
       ? supabase
           .from("bookings")
           .select("id", { count: "exact", head: true })
+          .in("payment_status", CONFIRMED_PAYMENT_STATUSES)
           .gt("pickup_date", today)
           .is("deleted_at", null)
       : supabase
           .from("bookings")
           .select("id", { count: "exact", head: true })
+          .in("payment_status", CONFIRMED_PAYMENT_STATUSES)
           .eq("assigned_driver_id", driver.id)
           .gt("pickup_date", today)
           .is("deleted_at", null),
     supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
+      .in("payment_status", CONFIRMED_PAYMENT_STATUSES)
       .eq("assigned_driver_id", driver.id)
       .eq("booking_status", "completed"),
     isDispatcher
       ? supabase
           .from("bookings")
           .select("id, reference, pickup_time, pickup_address, destination_address, passengers, vehicle_type, booking_status")
+          .in("payment_status", CONFIRMED_PAYMENT_STATUSES)
           .gte("pickup_date", today)
           .not("booking_status", "in", "(completed,cancelled,canceled,deleted)")
           .is("deleted_at", null)
@@ -64,6 +72,7 @@ export default async function ChauffeurPage() {
       : supabase
           .from("bookings")
           .select("id, reference, pickup_time, pickup_address, destination_address, passengers, vehicle_type, booking_status")
+          .in("payment_status", CONFIRMED_PAYMENT_STATUSES)
           .eq("assigned_driver_id", driver.id)
           .gte("pickup_date", today)
           .not("booking_status", "in", "(completed,cancelled,canceled,deleted)")

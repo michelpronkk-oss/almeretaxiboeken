@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
   const supabase = getSupabaseServiceClient()
   const bookingRef = generateRef()
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://almeretaxiboeken.nl").replace(/\/$/, "")
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.almeretaxiboeken.nl").replace(/\/$/, "")
 
   // ── Cash payment path ────────────────────────────────────────────────────────
   if (paymentMethod === "cash") {
@@ -221,8 +221,8 @@ export async function POST(request: Request) {
     note: "Boeking aangemaakt, wacht op betaling.",
   })
 
-  const redirectBase = process.env.MOLLIE_REDIRECT_URL ?? "https://almeretaxiboeken.nl/boeking/bedankt"
-  const webhookUrl = process.env.MOLLIE_WEBHOOK_URL ?? "https://almeretaxiboeken.nl/api/mollie/webhook"
+  const redirectBase = process.env.MOLLIE_REDIRECT_URL ?? "https://www.almeretaxiboeken.nl/boeking/bedankt"
+  const webhookUrl = process.env.MOLLIE_WEBHOOK_URL ?? "https://www.almeretaxiboeken.nl/api/mollie/webhook"
 
   const redirectUrl = new URL(redirectBase)
   redirectUrl.searchParams.set("bookingId", insertedBooking.id)

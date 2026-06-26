@@ -98,7 +98,7 @@ export async function POST(request: Request) {
     return new Response("ok", { status: 200 })
   }
 
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://almeretaxiboeken.nl").replace(/\/$/, "")
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.almeretaxiboeken.nl").replace(/\/$/, "")
   const bookingUrl = `${siteUrl}/boeking/bedankt?reference=${encodeURIComponent(d.bookingRef)}`
 
   const customerMail = customerBookingConfirmedEmail({

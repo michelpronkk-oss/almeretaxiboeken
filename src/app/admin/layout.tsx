@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu, X } from "lucide-react"
@@ -25,8 +25,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const isLogin = pathname === "/admin/login"
   const [menuOpen, setMenuOpen] = useState(false)
-
-  useEffect(() => { setMenuOpen(false) }, [pathname])
 
   if (isLogin) {
     return <div className="min-h-screen bg-[#070707] text-[#F5F1E8]">{children}</div>
@@ -96,6 +94,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={() => setMenuOpen(false)}
                       className={`rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                         active ? "bg-[#141210] text-[#D6B58A]" : "text-[#B7AEA2] hover:bg-[#141210] hover:text-[#F5F1E8]"
                       }`}
@@ -107,6 +106,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <div className="my-1.5 border-t border-[#292520]" />
                 <a
                   href="/admin/logout"
+                  onClick={() => setMenuOpen(false)}
                   className="rounded-lg px-3 py-2.5 text-sm font-semibold text-[#D6B58A] hover:bg-[#141210]"
                 >
                   Uitloggen

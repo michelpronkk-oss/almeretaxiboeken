@@ -35,8 +35,8 @@ async function createInvite(emailRaw: string) {
 
   const { data: existingDriver } = await supabase
     .from("drivers")
-    .select("id")
-    .eq("email", email)
+    .select("id, active, approval_status, onboarding_status")
+    .ilike("email", email)
     .maybeSingle()
 
   let driverId = existingDriver?.id
@@ -61,6 +61,14 @@ async function createInvite(emailRaw: string) {
 
     driverId = createdDriver.id
   } else {
+    if (existingDriver?.active && existingDriver.approval_status === "approved") {
+      return { ok: false as const, error: "Deze chauffeur is al actief. Verstuur een inloglink via de chauffeur login." }
+    }
+
+    if (existingDriver?.onboarding_status === "submitted") {
+      return { ok: false as const, error: "Deze chauffeur heeft het profiel al ingediend. Controleer en keur goed of wijs af." }
+    }
+
     await supabase
       .from("drivers")
       .update({
@@ -132,7 +140,9 @@ async function resendInviteAction(formData: FormData) {
   revalidatePath("/admin/chauffeurs")
 
   if (!result.sent) {
-    redirect(`/admin/chauffeurs?actionStatus=${encodeURIComponent("Uitnodiging aangemaakt. Resend is niet ingesteld.")}`)
+    redirect(
+      `/admin/chauffeurs?actionStatus=${encodeURIComponent("Uitnodiging aangemaakt. Kopieer de link handmatig.")}&inviteLink=${encodeURIComponent(result.onboardingUrl)}`,
+    )
   }
 
   redirect(`/admin/chauffeurs?actionStatus=${encodeURIComponent("Uitnodiging verstuurd.")}`)
@@ -308,7 +318,7 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
         ) : null}
         {params.inviteLink ? (
           <div className="mt-3 rounded-lg border border-[#D6B58A]/30 bg-[#3A2D1F]/20 p-3">
-            <p className="text-xs text-[#D6B58A]">Resend niet ingesteld. Kopieer de link handmatig.</p>
+            <p className="text-xs text-[#D6B58A]">E-mail niet verzonden. Kopieer de link handmatig.</p>
             <input
               readOnly
               value={params.inviteLink}
@@ -326,9 +336,10 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
         {drivers?.map((driver) => {
           const firstLast = [driver.first_name, driver.last_name].filter(Boolean).join(" ")
           const name = firstLast || driver.full_name || "Nog niet ingevuld"
-          const isOwner = driver.is_owner || driver.default_assign
-          const statusLabel =
-            driver.active ? "Actief"
+              const isOwner = driver.is_owner || driver.default_assign
+              const canResendInvite = !driver.active && driver.approval_status !== "approved" && driver.onboarding_status !== "submitted"
+              const statusLabel =
+                driver.active ? "Actief"
             : driver.approval_status === "approved" ? "Goedgekeurd"
             : driver.onboarding_status === "submitted" ? "Voor controle"
             : "Uitgenodigd"
@@ -372,14 +383,16 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
                 >
                   Bekijken
                 </Link>
-                <form action={resendInviteAction}>
-                  <input type="hidden" name="email" value={driver.email || ""} />
-                  <PendingSubmitButton
-                    idleLabel="Opnieuw uitnodigen"
-                    pendingLabel="Versturen..."
-                    className="rounded-lg border border-[#3A2D1F] px-3 py-2 text-xs text-[#D6B58A] hover:bg-[#1B1815]"
-                  />
-                </form>
+                {canResendInvite ? (
+                  <form action={resendInviteAction}>
+                    <input type="hidden" name="email" value={driver.email || ""} />
+                    <PendingSubmitButton
+                      idleLabel="Opnieuw uitnodigen"
+                      pendingLabel="Versturen..."
+                      className="rounded-lg border border-[#3A2D1F] px-3 py-2 text-xs text-[#D6B58A] hover:bg-[#1B1815]"
+                    />
+                  </form>
+                ) : null}
                 {driver.onboarding_status === "submitted" ? (
                   <form action={approveDriverAction}>
                     <input type="hidden" name="driverId" value={driver.id} />
@@ -430,6 +443,7 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
               const firstLast = [driver.first_name, driver.last_name].filter(Boolean).join(" ")
               const name = firstLast || driver.full_name || "Nog niet ingevuld"
               const isOwner = driver.is_owner || driver.default_assign
+              const canResendInvite = !driver.active && driver.approval_status !== "approved" && driver.onboarding_status !== "submitted"
               return (
                 <tr key={driver.id} className="border-b border-[#292520]/60 align-top">
                   <td className="px-3 py-3">
@@ -461,14 +475,16 @@ export default async function AdminChauffeursPage({ searchParams }: { searchPara
                       >
                         Bekijken
                       </Link>
-                      <form action={resendInviteAction}>
-                        <input type="hidden" name="email" value={driver.email || ""} />
-                        <PendingSubmitButton
-                          idleLabel="Opnieuw uitnodigen"
-                          pendingLabel="Uitnodiging versturen..."
-                          className="rounded-md border border-[#3A2D1F] px-2 py-1 text-xs text-[#D6B58A] hover:bg-[#1B1815]"
-                        />
-                      </form>
+                      {canResendInvite ? (
+                        <form action={resendInviteAction}>
+                          <input type="hidden" name="email" value={driver.email || ""} />
+                          <PendingSubmitButton
+                            idleLabel="Opnieuw uitnodigen"
+                            pendingLabel="Uitnodiging versturen..."
+                            className="rounded-md border border-[#3A2D1F] px-2 py-1 text-xs text-[#D6B58A] hover:bg-[#1B1815]"
+                          />
+                        </form>
+                      ) : null}
                       {driver.onboarding_status === "submitted" ? (
                         <form action={approveDriverAction}>
                           <input type="hidden" name="driverId" value={driver.id} />

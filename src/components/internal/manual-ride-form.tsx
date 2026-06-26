@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import AddressAutocomplete from "@/components/address-autocomplete"
 import { formatCurrencyEUR } from "@/lib/format"
@@ -86,12 +86,6 @@ export default function ManualRideForm() {
   const [fare, setFare] = useState<FareResult | null>(null)
   const [result, setResult] = useState<CreateResponse | null>(null)
 
-  useEffect(() => {
-    if (!adminVehicleOverride) {
-      setVehicleType(passengers >= 5 ? "taxibus" : "taxi")
-    }
-  }, [passengers, adminVehicleOverride])
-
   const vehicleWarning =
     passengers >= 5 && vehicleType === "taxi"
       ? "Let op: 5 of meer passagiers — overweeg Taxibus."
@@ -108,7 +102,7 @@ export default function ManualRideForm() {
   const whatsappText = useMemo(() => {
     if (!result?.paymentUrl) return ""
     return `Beste ${customerName || "klant"}, hierbij de betaallink voor uw rit met AlmereTaxiBoeken. Na betaling is uw rit definitief gereserveerd: ${result.paymentUrl}`
-  }, [result?.paymentUrl, customerName])
+  }, [result, customerName])
 
   const submitLabel = creating
     ? paymentMode === "online" ? "Betaallink aanmaken..." : paymentMode === "cash" ? "Contante rit aanmaken..." : "Rit opslaan..."
@@ -325,7 +319,13 @@ export default function ManualRideForm() {
             <div className="grid w-full min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
               <select
                 value={passengers}
-                onChange={(e) => setPassengers(Number(e.target.value))}
+                onChange={(e) => {
+                  const nextPassengers = Number(e.target.value)
+                  setPassengers(nextPassengers)
+                  if (!adminVehicleOverride) {
+                    setVehicleType(nextPassengers >= 5 ? "taxibus" : "taxi")
+                  }
+                }}
                 className="h-11 w-full min-w-0 max-w-full rounded-lg border border-[#292520] bg-[#0D0C0B] px-3 text-base text-[#F5F1E8] sm:h-10 sm:text-sm"
               >
                 {passengerOptions.map((p) => (

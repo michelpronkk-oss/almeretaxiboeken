@@ -13,7 +13,7 @@ async function loginAction(formData: FormData) {
     redirect("/admin/login?error=1")
   }
 
-  await setAdminAuthCookie(expected)
+  await setAdminAuthCookie()
   redirect("/admin")
 }
 

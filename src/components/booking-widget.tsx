@@ -28,7 +28,10 @@ interface PriceResult {
   calculatedFare?: number
 }
 
-const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "31612345678"
+const WHATSAPP_NUMBER =
+  process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ??
+  process.env.NEXT_PUBLIC_WHATSAPP_PHONE ??
+  "31612345678"
 
 function makeWhatsappLink(params: {
   origin: string
