@@ -19,6 +19,7 @@ import {
 import { isAdminAuthenticated } from "@/lib/admin-auth"
 import { formatCurrencyEUR } from "@/lib/format"
 import { getDashboardMetrics, type BookingRow } from "@/lib/admin/metrics"
+import { syncRecentPendingMollieBookings } from "@/lib/mollie-sync"
 
 export const metadata: Metadata = {
   title: "Dashboard | AlmereTaxiBoeken Admin",
@@ -210,6 +211,7 @@ export default async function AdminPage() {
   const authenticated = await isAdminAuthenticated()
   if (!authenticated) redirect("/admin/login")
 
+  await syncRecentPendingMollieBookings()
   const m = await getDashboardMetrics()
 
   // Website performance env checks (server-side)

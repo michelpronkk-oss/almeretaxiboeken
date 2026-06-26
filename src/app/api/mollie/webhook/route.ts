@@ -2,6 +2,7 @@ import { internalPaidBookingEmail, customerBookingConfirmedEmail } from "@/lib/e
 import { mapMollieToBookingPaymentStatus } from "@/lib/mollie-status"
 import { sendEmail } from "@/lib/email/send"
 import { getSupabaseServiceClient } from "@/lib/supabase/server"
+import { getPublicSiteUrl } from "@/lib/site-url"
 
 interface MolliePayment {
   id: string
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
     return new Response("ok", { status: 200 })
   }
 
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.almeretaxiboeken.nl").replace(/\/$/, "")
+  const siteUrl = getPublicSiteUrl()
   const bookingUrl = `${siteUrl}/boeking/bedankt?reference=${encodeURIComponent(d.bookingRef)}`
 
   const customerMail = customerBookingConfirmedEmail({

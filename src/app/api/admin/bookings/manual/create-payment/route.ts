@@ -6,6 +6,7 @@ import { getSupabaseServiceClient } from "@/lib/supabase/server"
 import { computeRouteFare } from "@/lib/taxi/pricing"
 import { matchFixedRoute } from "@/lib/taxi/fixed-routes"
 import { findDefaultOwnerDriver, assignDefaultOwnerToBooking, preAssignDefaultOwnerOnline } from "@/lib/default-owner-assignment"
+import { getMollieWebhookUrl, getPublicSiteUrl } from "@/lib/site-url"
 
 interface CreatePaymentBody {
   customerName?: string
@@ -296,8 +297,8 @@ export async function POST(request: NextRequest) {
     note: noteBase,
   })
 
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.almeretaxiboeken.nl").replace(/\/$/, "")
-  const webhookUrl = process.env.MOLLIE_WEBHOOK_URL || `${siteUrl}/api/mollie/webhook`
+  const siteUrl = getPublicSiteUrl()
+  const webhookUrl = getMollieWebhookUrl()
   const redirectUrl = new URL(`${siteUrl}/boeking/bedankt`)
   redirectUrl.searchParams.set("bookingId", booking.id)
   redirectUrl.searchParams.set("reference", booking.reference)

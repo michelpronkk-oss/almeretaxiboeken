@@ -4,6 +4,7 @@ import { matchFixedRoute } from "@/lib/taxi/fixed-routes"
 import { sendEmail } from "@/lib/email/send"
 import { cashBookingRequestEmail, internalCashBookingEmail } from "@/lib/email/templates"
 import { findDefaultOwnerDriver, assignDefaultOwnerToBooking, preAssignDefaultOwnerOnline } from "@/lib/default-owner-assignment"
+import { getMollieRedirectUrl, getMollieWebhookUrl, getPublicSiteUrl } from "@/lib/site-url"
 
 interface BookingBody {
   origin: string
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
 
   const supabase = getSupabaseServiceClient()
   const bookingRef = generateRef()
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.almeretaxiboeken.nl").replace(/\/$/, "")
+  const siteUrl = getPublicSiteUrl()
 
   // ── Cash payment path ────────────────────────────────────────────────────────
   if (paymentMethod === "cash") {
@@ -221,8 +222,8 @@ export async function POST(request: Request) {
     note: "Boeking aangemaakt, wacht op betaling.",
   })
 
-  const redirectBase = process.env.MOLLIE_REDIRECT_URL ?? "https://www.almeretaxiboeken.nl/boeking/bedankt"
-  const webhookUrl = process.env.MOLLIE_WEBHOOK_URL ?? "https://www.almeretaxiboeken.nl/api/mollie/webhook"
+  const redirectBase = getMollieRedirectUrl()
+  const webhookUrl = getMollieWebhookUrl()
 
   const redirectUrl = new URL(redirectBase)
   redirectUrl.searchParams.set("bookingId", insertedBooking.id)
