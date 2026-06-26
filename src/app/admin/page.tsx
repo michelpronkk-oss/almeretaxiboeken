@@ -262,7 +262,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </div>
 
       {/* ── Warning: no paid bookings ────────────────────── */}
-      {m.hasNoPaidBookings && (
+      {shouldSyncPayments && m.hasNoPaidBookings && (
         <div className="flex items-start gap-3 rounded-xl border border-[#D94A4A]/20 bg-[#D94A4A]/[0.04] p-4">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-[#D94A4A]" />
           <div>
